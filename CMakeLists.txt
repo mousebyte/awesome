@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(awesome C)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Require an out-of-source build. We generate an awesomerc.lua in the build dir
 # from the one in the source dir and this does not work otherwise.
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
@@ -33,7 +35,7 @@ endif()
 include(awesomeConfig.cmake)
 
 include_directories(
-    ${BUILD_DIR}
+    ${BUILD_DIR}/src
     ${AWESOME_COMMON_REQUIRED_INCLUDE_DIRS}
     ${AWESOME_REQUIRED_INCLUDE_DIRS}
     ${AWESOME_OPTIONAL_INCLUDE_DIRS})
@@ -50,51 +52,51 @@ set(AWE_DOC_FILES
     ${SOURCE_DIR}/LICENSE)
 
 set(AWE_SRCS
-    ${BUILD_DIR}/awesome.c
-    ${BUILD_DIR}/banning.c
-    ${BUILD_DIR}/color.c
-    ${BUILD_DIR}/dbus.c
-    ${BUILD_DIR}/draw.c
-    ${BUILD_DIR}/event.c
-    ${BUILD_DIR}/ewmh.c
-    ${BUILD_DIR}/keygrabber.c
-    ${BUILD_DIR}/luaa.c
-    ${BUILD_DIR}/mouse.c
-    ${BUILD_DIR}/mousegrabber.c
-    ${BUILD_DIR}/property.c
-    ${BUILD_DIR}/root.c
-    ${BUILD_DIR}/selection.c
-    ${BUILD_DIR}/spawn.c
-    ${BUILD_DIR}/stack.c
-    ${BUILD_DIR}/strut.c
-    ${BUILD_DIR}/systray.c
-    ${BUILD_DIR}/xwindow.c
-    ${BUILD_DIR}/options.c
-    ${BUILD_DIR}/xkb.c
-    ${BUILD_DIR}/xrdb.c
-    ${BUILD_DIR}/common/atoms.c
-    ${BUILD_DIR}/common/backtrace.c
-    ${BUILD_DIR}/common/buffer.c
-    ${BUILD_DIR}/common/luaclass.c
-    ${BUILD_DIR}/common/lualib.c
-    ${BUILD_DIR}/common/luaobject.c
-    ${BUILD_DIR}/common/util.c
-    ${BUILD_DIR}/common/version.c
-    ${BUILD_DIR}/common/xcursor.c
-    ${BUILD_DIR}/common/xembed.c
-    ${BUILD_DIR}/common/xutil.c
-    ${BUILD_DIR}/objects/button.c
-    ${BUILD_DIR}/objects/client.c
-    ${BUILD_DIR}/objects/drawable.c
-    ${BUILD_DIR}/objects/drawin.c
-    ${BUILD_DIR}/objects/key.c
-    ${BUILD_DIR}/objects/screen.c
-    ${BUILD_DIR}/objects/selection_acquire.c
-    ${BUILD_DIR}/objects/selection_transfer.c
-    ${BUILD_DIR}/objects/selection_watcher.c
-    ${BUILD_DIR}/objects/tag.c
-    ${BUILD_DIR}/objects/selection_getter.c
-    ${BUILD_DIR}/objects/window.c)
+    ${BUILD_DIR}/src/awesome.c
+    ${BUILD_DIR}/src/banning.c
+    ${BUILD_DIR}/src/color.c
+    ${BUILD_DIR}/src/dbus.c
+    ${BUILD_DIR}/src/draw.c
+    ${BUILD_DIR}/src/event.c
+    ${BUILD_DIR}/src/ewmh.c
+    ${BUILD_DIR}/src/keygrabber.c
+    ${BUILD_DIR}/src/luaa.c
+    ${BUILD_DIR}/src/mouse.c
+    ${BUILD_DIR}/src/mousegrabber.c
+    ${BUILD_DIR}/src/property.c
+    ${BUILD_DIR}/src/root.c
+    ${BUILD_DIR}/src/selection.c
+    ${BUILD_DIR}/src/spawn.c
+    ${BUILD_DIR}/src/stack.c
+    ${BUILD_DIR}/src/strut.c
+    ${BUILD_DIR}/src/systray.c
+    ${BUILD_DIR}/src/xwindow.c
+    ${BUILD_DIR}/src/options.c
+    ${BUILD_DIR}/src/xkb.c
+    ${BUILD_DIR}/src/xrdb.c
+    ${BUILD_DIR}/src/common/atoms.c
+    ${BUILD_DIR}/src/common/backtrace.c
+    ${BUILD_DIR}/src/common/buffer.c
+    ${BUILD_DIR}/src/common/luaclass.c
+    ${BUILD_DIR}/src/common/lualib.c
+    ${BUILD_DIR}/src/common/luaobject.c
+    ${BUILD_DIR}/src/common/util.c
+    ${BUILD_DIR}/src/common/version.c
+    ${BUILD_DIR}/src/common/xcursor.c
+    ${BUILD_DIR}/src/common/xembed.c
+    ${BUILD_DIR}/src/common/xutil.c
+    ${BUILD_DIR}/src/objects/button.c
+    ${BUILD_DIR}/src/objects/client.c
+    ${BUILD_DIR}/src/objects/drawable.c
+    ${BUILD_DIR}/src/objects/drawin.c
+    ${BUILD_DIR}/src/objects/key.c
+    ${BUILD_DIR}/src/objects/screen.c
+    ${BUILD_DIR}/src/objects/selection_acquire.c
+    ${BUILD_DIR}/src/objects/selection_transfer.c
+    ${BUILD_DIR}/src/objects/selection_watcher.c
+    ${BUILD_DIR}/src/objects/tag.c
+    ${BUILD_DIR}/src/objects/selection_getter.c
+    ${BUILD_DIR}/src/objects/window.c)
 
 set(AWE_MAN_SRCS
     ${SOURCE_DIR}/manpages/awesome.1.txt
@@ -155,26 +157,26 @@ target_link_libraries(${PROJECT_AWE_NAME}
 # atoms
 file(MAKE_DIRECTORY ${BUILD_DIR}/common)
 add_custom_command(
-    COMMAND ${SOURCE_DIR}/build-utils/atoms-ext.sh ${SOURCE_DIR}/common/atoms.list
-    ARGS    > ${BUILD_DIR}/common/atoms-extern.h
-    OUTPUT  ${BUILD_DIR}/common/atoms-extern.h
+    COMMAND ${SOURCE_DIR}/build-utils/atoms-ext.sh ${SOURCE_DIR}/src/common/atoms.list
+    ARGS    > ${BUILD_DIR}/src/common/atoms-extern.h
+    OUTPUT  ${BUILD_DIR}/src/common/atoms-extern.h
     WORKING_DIRECTORY ${SOURCE_DIR}
-    DEPENDS ${SOURCE_DIR}/common/atoms.list
+    DEPENDS ${SOURCE_DIR}/src/common/atoms.list
     COMMENT "Generating atoms-extern.h"
     VERBATIM)
 
 add_custom_command(
-    COMMAND ${SOURCE_DIR}/build-utils/atoms-int.sh ${SOURCE_DIR}/common/atoms.list
-    ARGS    > ${BUILD_DIR}/common/atoms-intern.h
-    OUTPUT  ${BUILD_DIR}/common/atoms-intern.h
+    COMMAND ${SOURCE_DIR}/build-utils/atoms-int.sh ${SOURCE_DIR}/src/common/atoms.list
+    ARGS    > ${BUILD_DIR}/src/common/atoms-intern.h
+    OUTPUT  ${BUILD_DIR}/src/common/atoms-intern.h
     WORKING_DIRECTORY ${SOURCE_DIR}
-    DEPENDS ${SOURCE_DIR}/common/atoms.list
+    DEPENDS ${SOURCE_DIR}/src/common/atoms.list
     COMMENT "Generating atoms-intern.h"
     VERBATIM)
 
 add_custom_target(generated_sources
-    DEPENDS ${BUILD_DIR}/common/atoms-intern.h
-            ${BUILD_DIR}/common/atoms-extern.h)
+    DEPENDS ${BUILD_DIR}/src/common/atoms-intern.h
+            ${BUILD_DIR}/src/common/atoms-extern.h)
 
 # Default theme directory
 file(MAKE_DIRECTORY ${BUILD_DIR}/themes/default)
