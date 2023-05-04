@@ -104,7 +104,7 @@ elseif(EXISTS ${CMAKE_CURRENT_LIST_DIR}/.git AND GIT_EXECUTABLE)
     # get current version
     execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --dirty
-        WORKING_DIRECTORY ${SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
         OUTPUT_VARIABLE VERSION
         OUTPUT_STRIP_TRAILING_WHITESPACE)
     # File the build-utils/git-version-stamp.sh script will look into.
