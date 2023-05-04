@@ -100,7 +100,7 @@ endif()
 if(OVERRIDE_VERSION)
     set(VERSION ${OVERRIDE_VERSION})
     message(STATUS "Using version from OVERRIDE_VERSION: ${VERSION}")
-elseif(EXISTS ${SOURCE_DIR}/.git AND GIT_EXECUTABLE)
+elseif(EXISTS ${CMAKE_CURRENT_LIST_DIR}/.git AND GIT_EXECUTABLE)
     # get current version
     execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --dirty
@@ -113,10 +113,10 @@ elseif(EXISTS ${SOURCE_DIR}/.git AND GIT_EXECUTABLE)
     # create a version_stamp target later
     set(BUILD_FROM_GIT TRUE)
     message(STATUS "Using version from git: ${VERSION}")
-elseif( EXISTS ${SOURCE_DIR}/.version_stamp )
+elseif( EXISTS ${CMAKE_CURRENT_LIST_DIR}/.version_stamp )
     # get version from version stamp
-    file(READ ${SOURCE_DIR}/.version_stamp VERSION)
-    message(STATUS "Using version from ${SOURCE_DIR}/.version_stamp: ${VERSION}")
+    file(READ ${CMAKE_CURRENT_LIST_DIR}/.version_stamp VERSION)
+    message(STATUS "Using version from ${CMAKE_CURRENT_LIST_DIR}/.version_stamp: ${VERSION}")
 endif()
 # }}}
 
@@ -307,34 +307,37 @@ endif()
 include(tests/examples/CMakeLists.txt)
 
 # {{{ Configure files
-file(GLOB awesome_base_c_configure_files RELATIVE ${SOURCE_DIR}
-    ${SOURCE_DIR}/src/*.c
-    ${SOURCE_DIR}/src/*.h)
+#file(GLOB awesome_base_c_configure_files RELATIVE ${CMAKE_CURRENT_LIST_DIR}
+#    ${SOURCE_DIR}/*.c
+#    ${SOURCE_DIR}/*.h)
 
-file(GLOB awesome_c_configure_files RELATIVE ${SOURCE_DIR}
-    ${SOURCE_DIR}/src/common/*.c
-    ${SOURCE_DIR}/src/common/*.h
-    ${SOURCE_DIR}/src/objects/*.c
-    ${SOURCE_DIR}/src/objects/*.h)
+#file(GLOB awesome_c_configure_files RELATIVE ${CMAKE_CURRENT_LIST_DIR}
+#    ${SOURCE_DIR}/common/*.c
+#    ${SOURCE_DIR}/common/*.h
+#    ${SOURCE_DIR}/objects/*.c
+#    ${SOURCE_DIR}/objects/*.h)
 
-file(GLOB_RECURSE awesome_lua_configure_files RELATIVE ${SOURCE_DIR}
-    ${SOURCE_DIR}/lib/*.lua)
+file(GLOB_RECURSE awesome_lua_configure_files RELATIVE ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/lib/*.lua)
 
-file(GLOB_RECURSE awesome_theme_configure_files RELATIVE ${SOURCE_DIR}
-    ${SOURCE_DIR}/themes/*/*.lua)
+file(GLOB_RECURSE awesome_theme_configure_files RELATIVE ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/themes/*/*.lua)
 
 set(AWESOME_CONFIGURE_FILES
-    ${awesome_base_c_configure_files}
+    #${awesome_base_c_configure_files}
     ${awesome_theme_configure_files}
-    src/config.h
     docs/config.ld
     src/awesome-version-internal.h)
 
 foreach(file ${AWESOME_CONFIGURE_FILES})
-    configure_file(${SOURCE_DIR}/${file}
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/${file}
                    ${BUILD_DIR}/${file}
                    ESCAPE_QUOTES
                    @ONLY)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/src/config.h.in
+    ${BUILD_DIR}/src/config.h
+    ESCAPE_QUOTES
+    @ONLY)
 endforeach()
 
 set(AWESOME_CONFIGURE_COPYONLY_WITHCOV_FILES
@@ -344,14 +347,14 @@ set(AWESOME_CONFIGURE_COPYONLY_WITHCOV_FILES
 
 if(DO_COVERAGE)
     foreach(file ${AWESOME_CONFIGURE_COPYONLY_WITHCOV_FILES})
-        configure_file(${SOURCE_DIR}/${file}
+        configure_file(${CMAKE_CURRENT_LIST_DIR}/${file}
                     ${BUILD_DIR}/${file}
                     COPYONLY)
     endforeach()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 --coverage -fprofile-arcs -ftest-coverage")
 else()
-    foreach(file ${AWESOME_CONFIGURE_COPYONLY_WITHCOV_FILES})
-        configure_file(${SOURCE_DIR}/${file}
+    foreach(file ${awesome_lua_configure_files})
+        configure_file(${CMAKE_CURRENT_LIST_DIR}/${file}
                     ${BUILD_DIR}/${file}
                     ESCAPE_QUOTES
                     @ONLY)
@@ -378,23 +381,23 @@ add_custom_command(TARGET setup_directories
         COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}/script_files/
         COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}/docs/common/
         COMMAND ${CMAKE_COMMAND} -E make_directory ${BUILD_DIR}/doc/images/
-        COMMAND ${CMAKE_COMMAND} -E copy ${SOURCE_DIR}/docs/_parser.lua ${BUILD_DIR}/docs/
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_LIST_DIR}/docs/_parser.lua ${BUILD_DIR}/docs/
 )
 
 add_custom_command(
         OUTPUT ${BUILD_DIR}/docs/06-appearance.md
-        COMMAND ${LUA_EXECUTABLE} ${SOURCE_DIR}/docs/06-appearance.md.lua
+        COMMAND ${LUA_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/docs/06-appearance.md.lua
         ${BUILD_DIR}/docs/06-appearance.md
         DEPENDS
             lgi-check-run
-            ${SOURCE_DIR}/docs/06-appearance.md.lua
-            ${SOURCE_DIR}/docs/_parser.lua
+            ${CMAKE_CURRENT_LIST_DIR}/docs/06-appearance.md.lua
+            ${CMAKE_CURRENT_LIST_DIR}/docs/_parser.lua
 )
 
 foreach(RULE_TYPE client tag screen notification)
     add_custom_command(
         OUTPUT ${BUILD_DIR}/docs/common/${RULE_TYPE}_rules_index.ldoc
-        COMMAND ${LUA_EXECUTABLE} ${SOURCE_DIR}/docs/build_rules_index.lua
+        COMMAND ${LUA_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/docs/build_rules_index.lua
             ${BUILD_DIR}/docs/common/${RULE_TYPE}_rules_index.ldoc
             ${RULE_TYPE}
 
@@ -402,28 +405,28 @@ foreach(RULE_TYPE client tag screen notification)
         # step rather than part of cmake.
         COMMAND ${CMAKE_COMMAND} -E
             copy ${BUILD_DIR}/docs/common/${RULE_TYPE}_rules_index.ldoc
-                 ${SOURCE_DIR}/docs/common/${RULE_TYPE}_rules_index.ldoc
+                 ${CMAKE_CURRENT_LIST_DIR}/docs/common/${RULE_TYPE}_rules_index.ldoc
 
         DEPENDS
             lgi-check-run
-            ${SOURCE_DIR}/docs/build_rules_index.lua
-            ${SOURCE_DIR}/docs/_parser.lua
+            ${CMAKE_CURRENT_LIST_DIR}/docs/build_rules_index.lua
+            ${CMAKE_CURRENT_LIST_DIR}/docs/_parser.lua
     )
 endforeach()
 
 add_custom_command(
         OUTPUT ${BUILD_DIR}/awesomerc.lua ${BUILD_DIR}/docs/05-awesomerc.md
-            ${BUILD_DIR}/script_files/rc.lua
-        COMMAND ${LUA_EXECUTABLE} ${SOURCE_DIR}/docs/05-awesomerc.md.lua
-        ${BUILD_DIR}/docs/05-awesomerc.md ${SOURCE_DIR}/awesomerc.lua
+        ${BUILD_DIR}/script_files/rc.lua
+        COMMAND ${LUA_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/docs/05-awesomerc.md.lua
+        ${BUILD_DIR}/docs/05-awesomerc.md ${CMAKE_CURRENT_LIST_DIR}/awesomerc.lua
         ${BUILD_DIR}/awesomerc.lua
         ${BUILD_DIR}/script_files/rc.lua
-        DEPENDS ${SOURCE_DIR}/awesomerc.lua ${SOURCE_DIR}/docs/05-awesomerc.md.lua
+        DEPENDS ${CMAKE_CURRENT_LIST_DIR}/awesomerc.lua ${CMAKE_CURRENT_LIST_DIR}/docs/05-awesomerc.md.lua
 )
 
 add_custom_command(
         OUTPUT ${BUILD_DIR}/script_files/theme.lua
-        COMMAND ${LUA_EXECUTABLE} ${SOURCE_DIR}/docs/sample_theme.lua ${BUILD_DIR}/script_files/
+        COMMAND ${LUA_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/docs/sample_theme.lua ${BUILD_DIR}/script_files/
 )
 
 # Create a target for the auto-generated awesomerc.lua and other files
@@ -432,18 +435,18 @@ add_custom_target(generate_awesomerc DEPENDS
     ${BUILD_DIR}/awesomerc.lua
     ${BUILD_DIR}/script_files/theme.lua
     ${BUILD_DIR}/script_files/rc.lua
-    ${SOURCE_DIR}/awesomerc.lua
+    ${CMAKE_CURRENT_LIST_DIR}/awesomerc.lua
     ${BUILD_DIR}/docs/06-appearance.md
-    ${SOURCE_DIR}/docs/05-awesomerc.md.lua
-    ${SOURCE_DIR}/docs/build_rules_index.lua
+    ${CMAKE_CURRENT_LIST_DIR}/docs/05-awesomerc.md.lua
+    ${CMAKE_CURRENT_LIST_DIR}/docs/build_rules_index.lua
     ${BUILD_DIR}/docs/common/client_rules_index.ldoc
     ${BUILD_DIR}/docs/common/tag_rules_index.ldoc
     ${BUILD_DIR}/docs/common/screen_rules_index.ldoc
     ${BUILD_DIR}/docs/common/notification_rules_index.ldoc
-    ${SOURCE_DIR}/docs/sample_theme.lua
-    ${SOURCE_DIR}/docs/sample_files.lua
-    ${SOURCE_DIR}/awesomerc.lua
-    ${awesome_c_configure_files}
+    ${CMAKE_CURRENT_LIST_DIR}/docs/sample_theme.lua
+    ${CMAKE_CURRENT_LIST_DIR}/docs/sample_files.lua
+    ${CMAKE_CURRENT_LIST_DIR}/awesomerc.lua
+    #${awesome_c_configure_files}
     ${awesome_lua_configure_files}
 )
 
@@ -451,13 +454,13 @@ add_custom_target(generate_awesomerc DEPENDS
 #}}}
 
 # {{{ Copy additional files
-file(GLOB awesome_md_docs RELATIVE ${SOURCE_DIR}
-    ${SOURCE_DIR}/docs/*.md)
+file(GLOB awesome_md_docs RELATIVE ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/docs/*.md)
 set(AWESOME_ADDITIONAL_FILES
     ${awesome_md_docs})
 
 foreach(file ${AWESOME_ADDITIONAL_FILES})
-    configure_file(${SOURCE_DIR}/${file}
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/${file}
                    ${BUILD_DIR}/${file}
                    @ONLY)
 endforeach()

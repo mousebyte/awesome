@@ -23,10 +23,10 @@ if(COMMAND cmake_policy)
     cmake_policy(VERSION 2.6)
 endif()
 
-set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 set(BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
-if(NOT EXISTS ${SOURCE_DIR}/awesomeConfig.cmake)
+if(NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/awesomeConfig.cmake)
     message(FATAL_ERROR "Please provide awesomeConfig.cmake")
 endif()
 
@@ -36,12 +36,13 @@ include(awesomeConfig.cmake)
 
 include_directories(
     ${BUILD_DIR}/src
+    ${SOURCE_DIR}
     ${AWESOME_COMMON_REQUIRED_INCLUDE_DIRS}
     ${AWESOME_REQUIRED_INCLUDE_DIRS}
     ${AWESOME_OPTIONAL_INCLUDE_DIRS})
 
-set(AWE_ICON_DIR ${SOURCE_DIR}/icons)
-set(AWE_THEMES_DIR ${SOURCE_DIR}/themes)
+set(AWE_ICON_DIR ${CMAKE_CURRENT_LIST_DIR}/icons)
+set(AWE_THEMES_DIR ${CMAKE_CURRENT_LIST_DIR}/themes)
 
 set(AWE_DOC_DIR ${BUILD_DIR}/docs)
 
@@ -49,59 +50,59 @@ set(AWE_DOC_FILES
     ${AWE_DOC_DIR}/00-authors.md
     ${AWE_DOC_DIR}/01-readme.md
     ${AWE_DOC_DIR}/02-contributing.md
-    ${SOURCE_DIR}/LICENSE)
+    ${CMAKE_CURRENT_LIST_DIR}/LICENSE)
 
 set(AWE_SRCS
-    ${BUILD_DIR}/src/awesome.c
-    ${BUILD_DIR}/src/banning.c
-    ${BUILD_DIR}/src/color.c
-    ${BUILD_DIR}/src/dbus.c
-    ${BUILD_DIR}/src/draw.c
-    ${BUILD_DIR}/src/event.c
-    ${BUILD_DIR}/src/ewmh.c
-    ${BUILD_DIR}/src/keygrabber.c
-    ${BUILD_DIR}/src/luaa.c
-    ${BUILD_DIR}/src/mouse.c
-    ${BUILD_DIR}/src/mousegrabber.c
-    ${BUILD_DIR}/src/property.c
-    ${BUILD_DIR}/src/root.c
-    ${BUILD_DIR}/src/selection.c
-    ${BUILD_DIR}/src/spawn.c
-    ${BUILD_DIR}/src/stack.c
-    ${BUILD_DIR}/src/strut.c
-    ${BUILD_DIR}/src/systray.c
-    ${BUILD_DIR}/src/xwindow.c
-    ${BUILD_DIR}/src/options.c
-    ${BUILD_DIR}/src/xkb.c
-    ${BUILD_DIR}/src/xrdb.c
-    ${BUILD_DIR}/src/common/atoms.c
-    ${BUILD_DIR}/src/common/backtrace.c
-    ${BUILD_DIR}/src/common/buffer.c
-    ${BUILD_DIR}/src/common/luaclass.c
-    ${BUILD_DIR}/src/common/lualib.c
-    ${BUILD_DIR}/src/common/luaobject.c
-    ${BUILD_DIR}/src/common/util.c
-    ${BUILD_DIR}/src/common/version.c
-    ${BUILD_DIR}/src/common/xcursor.c
-    ${BUILD_DIR}/src/common/xembed.c
-    ${BUILD_DIR}/src/common/xutil.c
-    ${BUILD_DIR}/src/objects/button.c
-    ${BUILD_DIR}/src/objects/client.c
-    ${BUILD_DIR}/src/objects/drawable.c
-    ${BUILD_DIR}/src/objects/drawin.c
-    ${BUILD_DIR}/src/objects/key.c
-    ${BUILD_DIR}/src/objects/screen.c
-    ${BUILD_DIR}/src/objects/selection_acquire.c
-    ${BUILD_DIR}/src/objects/selection_transfer.c
-    ${BUILD_DIR}/src/objects/selection_watcher.c
-    ${BUILD_DIR}/src/objects/tag.c
-    ${BUILD_DIR}/src/objects/selection_getter.c
-    ${BUILD_DIR}/src/objects/window.c)
+    ${SOURCE_DIR}/awesome.c
+    ${SOURCE_DIR}/banning.c
+    ${SOURCE_DIR}/color.c
+    ${SOURCE_DIR}/dbus.c
+    ${SOURCE_DIR}/draw.c
+    ${SOURCE_DIR}/event.c
+    ${SOURCE_DIR}/ewmh.c
+    ${SOURCE_DIR}/keygrabber.c
+    ${SOURCE_DIR}/luaa.c
+    ${SOURCE_DIR}/mouse.c
+    ${SOURCE_DIR}/mousegrabber.c
+    ${SOURCE_DIR}/property.c
+    ${SOURCE_DIR}/root.c
+    ${SOURCE_DIR}/selection.c
+    ${SOURCE_DIR}/spawn.c
+    ${SOURCE_DIR}/stack.c
+    ${SOURCE_DIR}/strut.c
+    ${SOURCE_DIR}/systray.c
+    ${SOURCE_DIR}/xwindow.c
+    ${SOURCE_DIR}/options.c
+    ${SOURCE_DIR}/xkb.c
+    ${SOURCE_DIR}/xrdb.c
+    ${SOURCE_DIR}/common/atoms.c
+    ${SOURCE_DIR}/common/backtrace.c
+    ${SOURCE_DIR}/common/buffer.c
+    ${SOURCE_DIR}/common/luaclass.c
+    ${SOURCE_DIR}/common/lualib.c
+    ${SOURCE_DIR}/common/luaobject.c
+    ${SOURCE_DIR}/common/util.c
+    ${SOURCE_DIR}/common/version.c
+    ${SOURCE_DIR}/common/xcursor.c
+    ${SOURCE_DIR}/common/xembed.c
+    ${SOURCE_DIR}/common/xutil.c
+    ${SOURCE_DIR}/objects/button.c
+    ${SOURCE_DIR}/objects/client.c
+    ${SOURCE_DIR}/objects/drawable.c
+    ${SOURCE_DIR}/objects/drawin.c
+    ${SOURCE_DIR}/objects/key.c
+    ${SOURCE_DIR}/objects/screen.c
+    ${SOURCE_DIR}/objects/selection_acquire.c
+    ${SOURCE_DIR}/objects/selection_transfer.c
+    ${SOURCE_DIR}/objects/selection_watcher.c
+    ${SOURCE_DIR}/objects/tag.c
+    ${SOURCE_DIR}/objects/selection_getter.c
+    ${SOURCE_DIR}/objects/window.c)
 
 set(AWE_MAN_SRCS
-    ${SOURCE_DIR}/manpages/awesome.1.txt
-    ${SOURCE_DIR}/manpages/awesome-client.1.txt
-    ${SOURCE_DIR}/manpages/awesomerc.5.txt)
+    ${CMAKE_CURRENT_LIST_DIR}/manpages/awesome.1.txt
+    ${CMAKE_CURRENT_LIST_DIR}/manpages/awesome-client.1.txt
+    ${CMAKE_CURRENT_LIST_DIR}/manpages/awesomerc.5.txt)
 set(AWE_MAN_LANGS it es fr de ru)
 
 # Don't strip RPATH if compiling on Solaris
@@ -155,22 +156,22 @@ target_link_libraries(${PROJECT_AWE_NAME}
 
 # {{{ Generated sources
 # atoms
-file(MAKE_DIRECTORY ${BUILD_DIR}/common)
+file(MAKE_DIRECTORY ${BUILD_DIR}/src/common)
 add_custom_command(
-    COMMAND ${SOURCE_DIR}/build-utils/atoms-ext.sh ${SOURCE_DIR}/src/common/atoms.list
+    COMMAND ${CMAKE_CURRENT_LIST_DIR}/build-utils/atoms-ext.sh ${SOURCE_DIR}/common/atoms.list
     ARGS    > ${BUILD_DIR}/src/common/atoms-extern.h
     OUTPUT  ${BUILD_DIR}/src/common/atoms-extern.h
-    WORKING_DIRECTORY ${SOURCE_DIR}
-    DEPENDS ${SOURCE_DIR}/src/common/atoms.list
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    DEPENDS ${SOURCE_DIR}/common/atoms.list
     COMMENT "Generating atoms-extern.h"
     VERBATIM)
 
 add_custom_command(
-    COMMAND ${SOURCE_DIR}/build-utils/atoms-int.sh ${SOURCE_DIR}/src/common/atoms.list
+    COMMAND ${CMAKE_CURRENT_LIST_DIR}/build-utils/atoms-int.sh ${SOURCE_DIR}/common/atoms.list
     ARGS    > ${BUILD_DIR}/src/common/atoms-intern.h
     OUTPUT  ${BUILD_DIR}/src/common/atoms-intern.h
-    WORKING_DIRECTORY ${SOURCE_DIR}
-    DEPENDS ${SOURCE_DIR}/src/common/atoms.list
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    DEPENDS ${SOURCE_DIR}/common/atoms.list
     COMMENT "Generating atoms-intern.h"
     VERBATIM)
 
@@ -189,10 +190,10 @@ add_dependencies(${PROJECT_AWE_NAME} generated_sources)
 # {{{ Version stamp
 if(BUILD_FROM_GIT)
     add_custom_target(version_stamp ALL
-        COMMAND ${SOURCE_DIR}/build-utils/git-version-stamp.sh
+        COMMAND ${CMAKE_CURRENT_LIST_DIR}/build-utils/git-version-stamp.sh
                 ${VERSION_STAMP_FILE}
-                ${BUILD_DIR}/awesome-version-internal.h
-        WORKING_DIRECTORY ${SOURCE_DIR})
+                ${SOURCE_DIR}/awesome-version-internal.h
+                WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 
     add_dependencies(${PROJECT_AWE_NAME} version_stamp)
 endif()
@@ -216,7 +217,7 @@ if(GENERATE_MANPAGES)
 
             # figure the relative path of the file
             GET_FILENAME_COMPONENT(tmppath ${txtfile} PATH)
-            string(REPLACE ${SOURCE_DIR}/ "" relpath ${tmppath})
+            string(REPLACE ${CMAKE_CURRENT_LIST_DIR}/ "" relpath ${tmppath})
 
             # figure the manpage section to install to from filename
             string(REGEX REPLACE "^.*\\.([0-9])$" "\\1" section ${basename})
@@ -234,7 +235,7 @@ if(GENERATE_MANPAGES)
             file(MAKE_DIRECTORY ${BUILD_DIR}/${relpath2})
 
             # set the final filenames
-            set(txtfile ${SOURCE_DIR}/${relpath}/${basename2}.txt)
+            set(txtfile ${CMAKE_CURRENT_LIST_DIR}/${relpath}/${basename2}.txt)
             set(gzfile  ${BUILD_DIR}/${relpath2}/${basename}.gz)
             set(manfile ${BUILD_DIR}/${relpath2}/${basename})
 
@@ -272,14 +273,14 @@ endif()
 
 # {{{ Lua API Documentation
 if(GENERATE_DOC)
-    if(NOT BUILD_DIR STREQUAL SOURCE_DIR)
+    if(NOT BUILD_DIR STREQUAL CMAKE_CURRENT_LIST_DIR)
         file(MAKE_DIRECTORY ${BUILD_DIR}/lib)
         file(MAKE_DIRECTORY ${BUILD_DIR}/doc)
     endif()
 
     file(GLOB_RECURSE AWE_LUA_FILES ${BUILD_DIR}/lib/*.lua)
     file(GLOB_RECURSE AWE_MD_FILES ${AWE_DOC_DIR}/*.md)
-    file(GLOB_RECURSE AWE_MD_LUA_FILES RELATIVE "${SOURCE_DIR}/docs" docs/*.md.lua)
+    file(GLOB_RECURSE AWE_MD_LUA_FILES RELATIVE "${CMAKE_CURRENT_LIST_DIR}/docs" docs/*.md.lua)
     foreach(file ${AWE_MD_LUA_FILES})
         # Remove .lua file extensions
         string(REPLACE ".lua" "" file ${file})
@@ -287,11 +288,11 @@ if(GENERATE_DOC)
     endforeach()
 
     # Copy the images to the build directory
-    file(COPY ${SOURCE_DIR}/docs/images DESTINATION ${BUILD_DIR}/doc)
+    file(COPY ${CMAKE_CURRENT_LIST_DIR}/docs/images DESTINATION ${BUILD_DIR}/doc)
 
     # Copy ldoc files.
-    configure_file(${SOURCE_DIR}/docs/ldoc.css ${BUILD_DIR}/docs COPYONLY)
-    configure_file(${SOURCE_DIR}/docs/ldoc.ltp ${BUILD_DIR}/docs COPYONLY)
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/docs/ldoc.css ${BUILD_DIR}/docs COPYONLY)
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/docs/ldoc.ltp ${BUILD_DIR}/docs COPYONLY)
 
     add_custom_target(ldoc ALL
         DEPENDS ${BUILD_DIR}/doc/index.html DOC_EXAMPLES_PPOSTPROCESS_CLEANUP
@@ -321,7 +322,7 @@ endif()
 # }}}
 
 # {{{ Theme icons
-file(GLOB_RECURSE icon_sources RELATIVE ${SOURCE_DIR} ${SOURCE_DIR}/themes/*.png)
+file(GLOB_RECURSE icon_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/themes/*.png)
 
 foreach(icon ${icon_sources})
     # Copy all icons to the build dir to simplify the following code.
@@ -365,8 +366,8 @@ add_custom_target(generated_icons ALL DEPENDS ${ALL_ICONS})
 # {{{ Dist tarball
 if(BUILD_FROM_GIT)
     add_custom_target(dist
-        COMMAND ${SOURCE_DIR}/build-utils/dist.sh ${VERSION}
-        WORKING_DIRECTORY ${SOURCE_DIR})
+        COMMAND ${CMAKE_CURRENT_LIST_DIR}/build-utils/dist.sh ${VERSION}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
 endif()
 # }}}
 
@@ -387,7 +388,7 @@ if(GENERATE_MANPAGES)
             REGEX ${regex} EXCLUDE )
 endif()
 install(DIRECTORY ${AWE_ICON_DIR} DESTINATION ${AWESOME_DATA_PATH})
-install(DIRECTORY ${SOURCE_DIR}/themes DESTINATION ${AWESOME_DATA_PATH}
+install(DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/themes DESTINATION ${AWESOME_DATA_PATH}
     PATTERN "*.lua" EXCLUDE)
 install(DIRECTORY ${BUILD_DIR}/themes DESTINATION ${AWESOME_DATA_PATH}
     PATTERN "*.lua")
