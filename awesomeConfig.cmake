@@ -130,6 +130,8 @@ endif()
 pkg_check_modules(AWESOME_COMMON_REQUIRED REQUIRED
     xcb>=1.6)
 
+find_package(LuaClass)
+
 set(AWESOME_DEPENDENCIES
     glib-2.0
     glib-2.0>=2.40
@@ -198,6 +200,7 @@ endif()
 
 set(AWESOME_REQUIRED_LDFLAGS
     ${AWESOME_COMMON_REQUIRED_LDFLAGS}
+    LuaClass::LuaClass
     ${AWESOME_REQUIRED_LDFLAGS}
     ${LUA_LIBRARIES}
     )
