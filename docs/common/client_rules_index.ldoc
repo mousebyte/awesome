@@ -1,0 +1,29 @@
+--<table class='widget_list' border=1>
+-- <tr>
+--  <th align='center'>Name</th>
+--  <th align='center'>Description</th>
+-- </tr>
+--   <tr><td><a href='../core_components/client.html#placement'>placement</a></td><td>The client default placement on the screen</td></tr>
+--   <tr><td><a href='../core_components/client.html#honor_padding'>honor\_padding</a></td><td>When applying the placement, honor the screen padding</td></tr>
+--   <tr><td><a href='../core_components/client.html#honor_workarea'>honor\_workarea</a></td><td>When applying the placement, honor the screen work area</td></tr>
+--   <tr><td><a href='../core_components/client.html#tag'>tag</a></td><td>The client default tag</td></tr>
+--   <tr><td><a href='../core_components/client.html#tags'>tags</a></td><td>The client default tags</td></tr>
+--   <tr><td><a href='../core_components/client.html#new_tag'>new\_tag</a></td><td>Create a new tag for this client</td></tr>
+--   <tr><td><a href='../core_components/client.html#switch_to_tags'>switch\_to\_tags</a></td><td>Unselect the current tags and select this client tags</td></tr>
+--   <tr><td><a href='../core_components/client.html#focus'>focus</a></td><td>Define if the client should grab focus by default</td></tr>
+--   <tr><td><a href='../core_components/client.html#titlebars_enabled'>titlebars\_enabled</a></td><td>Should this client have a titlebar by default</td></tr>
+--   <tr><td><a href='../core_components/client.html#callback'>callback</a></td><td>A function to call when this client is ready</td></tr>
+--   <tr><td><a href='../core_components/client.html#marked'>marked</a></td><td>If a client is marked or not</td></tr>
+--   <tr><td><a href='../core_components/client.html#is_fixed'>is\_fixed</a></td><td>Return if a client has a fixed size or not</td></tr>
+--   <tr><td><a href='../core_components/client.html#immobilized_horizontal'>immobilized\_horizontal</a></td><td>Is the client immobilized horizontally?</td></tr>
+--   <tr><td><a href='../core_components/client.html#immobilized_vertical'>immobilized\_vertical</a></td><td>Is the client immobilized vertically?</td></tr>
+--   <tr><td><a href='../core_components/client.html#floating'>floating</a></td><td>The client floating state</td></tr>
+--   <tr><td><a href='../core_components/client.html#x'>x</a></td><td>The x coordinates</td></tr>
+--   <tr><td><a href='../core_components/client.html#y'>y</a></td><td>The y coordinates</td></tr>
+--   <tr><td><a href='../core_components/client.html#width'>width</a></td><td>The width of the client</td></tr>
+--   <tr><td><a href='../core_components/client.html#height'>height</a></td><td>The height of the client</td></tr>
+--   <tr><td><a href='../core_components/client.html#dockable'>dockable</a></td><td>If the client is dockable</td></tr>
+--   <tr><td><a href='../core_components/client.html#requests_no_titlebar'>requests\_no\_titlebar</a></td><td>If the client requests not to be decorated with a titlebar</td></tr>
+--   <tr><td><a href='../core_components/client.html#shape'>shape</a></td><td>Set the client shape</td></tr>
+--   <tr><td><a href='../core_components/client.html#active'>active</a></td><td>Return true if the client is active (has focus)</td></tr>
+-- </table>
