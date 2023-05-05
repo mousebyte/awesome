@@ -3,3 +3,5 @@
 .*.sw?
 build
 .luacheckcache
+.cache
+compile_commands.json
