@@ -10,9 +10,7 @@ DO_BARRAY(const void *, cptr, DO_NOTHING, _cptr_cmp)
 
 typedef struct {
     unsigned long id;
-    size_t        nslots;
-    cptr_array_t  strong;
-    cptr_array_t  weak;
+    cptr_array_t  slots;
 } signal_t;
 
 static inline int _signal_cmp(const void *a, const void *b) {
@@ -21,8 +19,7 @@ static inline int _signal_cmp(const void *a, const void *b) {
 }
 
 static inline void _signal_wipe(signal_t *sig) {
-    cptr_array_wipe(&sig->strong);
-    cptr_array_wipe(&sig->weak);
+    cptr_array_wipe(&sig->slots);
 }
 
 DO_BARRAY(signal_t, signal, _signal_wipe, _signal_cmp)
@@ -48,33 +45,11 @@ static int signal_interface_connect(lua_State *L) {
     lua_rotate(L, 2, -1);  // rotate func to top
     if (sigfound) {
         luaC_uvrawsetp(L, -3, 2, ref);
-        cptr_array_insert(&sigfound->strong, ref);
-        sigfound->nslots++;
+        cptr_array_insert(&sigfound->slots, ref);
     } else {
-        signal_t sig = {.id = id, .nslots = 1};
+        signal_t sig = {.id = id};
         luaC_uvrawsetp(L, -3, 2, ref);
-        cptr_array_insert(&sig.strong, ref);
-        signal_array_insert(arr, sig);
-    }
-    return 0;
-}
-
-static int signal_interface_connect_weak(lua_State *L) {
-    lua_getfield(L, 1, "_store");
-    lua_getfield(L, 1, "_id");
-    signal_array_t *arr      = luaC_checkuclass(L, -2, "SignalStore");
-    unsigned long   id       = luaL_checknumber(L, -1);
-    const void     *ref      = lua_topointer(L, 2);
-    signal_t       *sigfound = signal_array_getbyid(arr, id);
-    lua_rotate(L, 2, -1);  // rotate func to top
-    if (sigfound) {
-        luaC_uvrawsetp(L, -3, 3, ref);
-        cptr_array_insert(&sigfound->weak, ref);
-        sigfound->nslots++;
-    } else {
-        signal_t sig = {.id = id, .nslots = 1};
-        luaC_uvrawsetp(L, -3, 3, ref);
-        cptr_array_insert(&sig.weak, ref);
+        cptr_array_insert(&sig.slots, ref);
         signal_array_insert(arr, sig);
     }
     return 0;
@@ -90,20 +65,13 @@ static int signal_interface_disconnect(lua_State *L) {
     lua_rotate(L, 2, -1);  // rotate func to top
     if (sigfound) {
         const void **elem;
-        if ((elem = cptr_array_lookup(&sigfound->strong, &ref))) {
+        if ((elem = cptr_array_lookup(&sigfound->slots, &ref))) {
             lua_pushnil(L);
             luaC_uvrawsetp(L, -4, 2, *elem);
-            cptr_array_remove(&sigfound->strong, elem);
-            sigfound->nslots--;
-        } else if ((elem = cptr_array_lookup(&sigfound->weak, &ref))) {
-            lua_pushnil(L);
-            luaC_uvrawsetp(L, -4, 3, *elem);
-            cptr_array_remove(&sigfound->weak, elem);
-            sigfound->nslots--;
+            cptr_array_remove(&sigfound->slots, elem);
         }
-        if (sigfound->nslots == 0) {
-            cptr_array_wipe(&sigfound->strong);
-            cptr_array_wipe(&sigfound->weak);
+        if (sigfound->slots.len == 0) {
+            cptr_array_wipe(&sigfound->slots);
             signal_array_remove(arr, sigfound);
         }
     }
@@ -119,32 +87,23 @@ static int signal_interface_call(lua_State *L) {
     lua_rotate(L, 2, 2);  // rotate args to top
     if (sigfound) {
         int nargs = lua_gettop(L) - 3;  // -3 for self, store, and id
-        lua_getiuservalue(L, 2, 2);     // get strong table from store
-        foreach (slot, sigfound->strong) {
-            lua_rawgetp(L, -1, *slot);       // get func from strong table
+        lua_getiuservalue(L, 2, 2);     // get slot table from store
+        foreach (slot, sigfound->slots) {
+            lua_rawgetp(L, -1, *slot);       // get func from slot table
             for (int i = 0; i < nargs; i++)  // push copies of args
-                lua_pushvalue(L, i + 3);
-            lua_call(L, nargs, 0);
-        }
-        lua_pop(L, 1);               // pop strong table
-        lua_getiuservalue(L, 2, 3);  // get weak table from store
-        foreach (slot, sigfound->weak) {
-            lua_rawgetp(L, -1, *slot);       // get func from weak table
-            for (int i = 0; i < nargs; i++)  // push copies of args
-                lua_pushvalue(L, i + 3);
-            lua_call(L, nargs, 0);
+                lua_pushvalue(L, i + 3);     // +3 for self, store, and id
+            lua_call(L, nargs, 0);           // call the func
         }
     }
     return 0;
 }
 
 static luaL_Reg signal_interface_methods[] = {
-    {"new",          signal_interface_init        },
-    {"connect",      signal_interface_connect     },
-    {"connect_weak", signal_interface_connect_weak},
-    {"disconnect",   signal_interface_disconnect  },
-    {"__call",       signal_interface_call        },
-    {NULL,           NULL                         }
+    {"new",        signal_interface_init      },
+    {"connect",    signal_interface_connect   },
+    {"disconnect", signal_interface_disconnect},
+    {"__call",     signal_interface_call      },
+    {NULL,         NULL                       }
 };
 
 static luaC_Class signal_interface_class = {
@@ -156,15 +115,9 @@ static luaC_Class signal_interface_class = {
     .methods   = signal_interface_methods};
 
 static void signal_store_alloc(lua_State *L) {
-    signal_array_t *arr = lua_newuserdatauv(L, sizeof(signal_array_t), 3);
-    lua_newtable(L);  // strong slot table
+    signal_array_t *arr = lua_newuserdatauv(L, sizeof(signal_array_t), 2);
+    lua_newtable(L);  // slot table
     lua_setiuservalue(L, -2, 2);
-    lua_newtable(L);  // weak slot table
-    lua_newtable(L);  // weak slot metatable
-    lua_pushstring(L, "v");
-    lua_setfield(L, -2, "__mode");
-    lua_setmetatable(L, -2);
-    lua_setiuservalue(L, -2, 3);
     signal_array_init(arr);
 }
 
