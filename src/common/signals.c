@@ -42,7 +42,7 @@ static int signal_interface_connect(lua_State *L) {
     unsigned long   id       = luaL_checknumber(L, -1);
     const void     *ref      = lua_topointer(L, 2);
     signal_t       *sigfound = signal_array_getbyid(arr, id);
-    lua_rotate(L, 2, -1);  // rotate func to top
+    lua_pushvalue(L, 2);  // push func
     if (sigfound) {
         luaC_uvrawsetp(L, -3, 2, ref);
         cptr_array_insert(&sigfound->slots, ref);
@@ -52,22 +52,25 @@ static int signal_interface_connect(lua_State *L) {
         cptr_array_insert(&sig.slots, ref);
         signal_array_insert(arr, sig);
     }
-    return 0;
+    // construct connection object from store, id, and func pointer
+    lua_pushlightuserdata(L, (void *)ref);
+    luaC_construct(L, 3, "Connection");
+    return 1;
 }
 
 static int signal_interface_disconnect(lua_State *L) {
     lua_getfield(L, 1, "_store");
     lua_getfield(L, 1, "_id");
-    signal_array_t *arr      = luaC_checkuclass(L, -2, "SignalStore");
-    unsigned long   id       = luaL_checknumber(L, -1);
-    const void     *ref      = lua_topointer(L, 2);
+    signal_array_t *arr = luaC_checkuclass(L, -2, "SignalStore");
+    unsigned long   id  = luaL_checknumber(L, -1);
+    // check for lightuserdata in case calling from connection
+    const void     *ref = lua_islightuserdata(L, 2) ? lua_touserdata(L, 2) : lua_topointer(L, 2);
     signal_t       *sigfound = signal_array_getbyid(arr, id);
-    lua_rotate(L, 2, -1);  // rotate func to top
     if (sigfound) {
         const void **elem;
         if ((elem = cptr_array_lookup(&sigfound->slots, &ref))) {
             lua_pushnil(L);
-            luaC_uvrawsetp(L, -4, 2, *elem);
+            luaC_uvrawsetp(L, -3, 2, *elem);
             cptr_array_remove(&sigfound->slots, elem);
         }
         if (sigfound->slots.len == 0) {
@@ -134,7 +137,7 @@ static int signal_store_index(lua_State *L) {
     return 1;
 }
 
-luaC_Class signal_store_class = {
+static luaC_Class signal_store_class = {
     .name      = "SignalStore",
     .parent    = NULL,
     .user_ctor = 0,
@@ -142,10 +145,77 @@ luaC_Class signal_store_class = {
     .gc        = signal_store_gc,
     .methods   = NULL};
 
+static int connection_init(lua_State *L) {
+    lua_setfield(L, 1, "_value");  // self._value = arg 3
+    lua_setfield(L, 1, "_id");     // self._id = arg 2
+    lua_setfield(L, 1, "_store");  // self._store = arg 1
+    return 0;
+}
+
+static int connection_connected(lua_State *L) {
+    int ret = 0;
+    if (lua_getfield(L, 1, "_store") == LUA_TUSERDATA) {
+        lua_getfield(L, 1, "_id");
+        signal_array_t *arr      = lua_touserdata(L, -2);
+        signal_t       *sigfound = signal_array_getbyid(arr, luaL_checknumber(L, -1));
+        if (sigfound) {
+            lua_getfield(L, 1, "_value");
+            const void *ref = lua_topointer(L, -1);
+            ret             = (cptr_array_lookup(&sigfound->slots, &ref) != NULL);
+        }
+    }
+    lua_pushboolean(L, ret);
+    return 1;
+}
+
+static int connection_scoped(lua_State *L) {
+    lua_getfield(L, 1, "_store");
+    lua_getfield(L, 1, "_id");
+    lua_getfield(L, 1, "_value");
+    luaC_construct(L, 3, "ScopedConnection");
+    return 1;
+}
+
+static int scoped_connection_gc(lua_State *L) {
+    if (lua_getfield(L, 1, "_store") == LUA_TUSERDATA) {
+        lua_getfield(L, 1, "_value");
+        luaC_pmcall(L, "disconnect", 1, 0, 0);
+    }
+    return 0;
+}
+
+static luaL_Reg connection_methods[] = {
+    {"new",        connection_init            },
+    {"connected",  connection_connected       },
+    {"disconnect", signal_interface_disconnect},
+    {"scoped",     connection_scoped          },
+    {NULL,         NULL                       }
+};
+
+static luaL_Reg scoped_connection_methods[] = {
+    {"new",        connection_init            },
+    {"connected",  connection_connected       },
+    {"disconnect", signal_interface_disconnect},
+    {NULL,         NULL                       }
+};
+
 void luaC_register_signal_store(lua_State *L) {
+    luaC_newclass(L, "Connection", NULL, connection_methods);
+    luaC_getbase(L, -1);
+    lua_pushstring(L, "v");
+    lua_setfield(L, -2, "__mode");
+    lua_pop(L, 2);
+    luaC_newclass(L, "ScopedConnection", NULL, scoped_connection_methods);
+    luaC_getbase(L, -1);
+    lua_pushstring(L, "v");
+    lua_setfield(L, -2, "__mode");
+    lua_pushcfunction(L, scoped_connection_gc);
+    lua_setfield(L, -2, "__gc");
+    lua_pop(L, 2);
     lua_pushlightuserdata(L, &signal_interface_class);
     luaC_register(L, -1);
     lua_pushlightuserdata(L, &signal_store_class);
     luaC_register(L, -1);
     luaC_injectindex(L, -1, signal_store_index);
+    lua_pop(L, 2);
 }
