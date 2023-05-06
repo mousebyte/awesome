@@ -9,4 +9,4 @@ and I plan to experiment with adding Wayland support. We'll see how it goes.
 
 You can check the status of the rewrite in the Issues tab or the Projects tab. Lunaria is currently in the process of
 working towards the [first port build](https://github.com/mousebyte/lunaria/milestone/1) milestone. The original
-[README.md](99-readme-old.md) is still available and contains legacy information about the project.
+[README.md](docs/99-readme-old.md) is still available and contains legacy information about the project.
