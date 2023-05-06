@@ -1,8 +1,9 @@
 /*
- * drawable.h - drawable functions header
+ * drawable.h - drawable class
  *
  * Copyright © 2007-2009 Julien Danjou <julien@danjou.info>
  * Copyright © 2010-2012 Uli Schlachter <psychon@znc.in>
+ * Copyright ©      2023 Abigail Teague <ateague063@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,33 +24,30 @@
 #ifndef AWESOME_OBJECTS_DRAWABLE_H
 #define AWESOME_OBJECTS_DRAWABLE_H
 
-#include "common/luaclass.h"
+#include "common/object.h"
 #include "draw.h"
 
 typedef void drawable_refresh_callback(void *);
 
 /** drawable type */
-struct drawable_t
-{
-    LUA_OBJECT_HEADER
+typedef struct drawable_t {
     /** The pixmap we are drawing to. */
-    xcb_pixmap_t pixmap;
+    xcb_pixmap_t               pixmap;
     /** Surface for drawing. */
-    cairo_surface_t *surface;
+    cairo_surface_t           *surface;
     /** The geometry of the drawable (in root window coordinates). */
-    area_t geometry;
+    area_t                     geometry;
     /** Surface contents are undefined if this is false. */
-    bool refreshed;
+    bool                       refreshed;
     /** Callback for refreshing. */
     drawable_refresh_callback *refresh_callback;
     /** Data for refresh callback. */
-    void *refresh_data;
-};
-typedef struct drawable_t drawable_t;
+    void                      *refresh_data;
+} drawable_t;
 
-drawable_t *drawable_allocator(lua_State *, drawable_refresh_callback *, void *);
-void drawable_set_geometry(lua_State *, int, area_t);
-void drawable_class_setup(lua_State *);
+drawable_t *make_drawable(lua_State *L, drawable_refresh_callback *callback, void *data);
+void        drawable_set_geometry(lua_State *, int, area_t);
+void        luaC_register_drawable(lua_State *);
 
 #endif
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
