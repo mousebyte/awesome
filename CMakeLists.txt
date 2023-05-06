@@ -78,14 +78,14 @@ set(AWE_SRCS
     ${SOURCE_DIR}/common/atoms.c
     ${SOURCE_DIR}/common/backtrace.c
     ${SOURCE_DIR}/common/buffer.c
-    ${SOURCE_DIR}/common/luaclass.c
     ${SOURCE_DIR}/common/lualib.c
-    ${SOURCE_DIR}/common/luaobject.c
     ${SOURCE_DIR}/common/util.c
     ${SOURCE_DIR}/common/version.c
     ${SOURCE_DIR}/common/xcursor.c
     ${SOURCE_DIR}/common/xembed.c
     ${SOURCE_DIR}/common/xutil.c
+    ${SOURCE_DIR}/common/signals.c
+    ${SOURCE_DIR}/common/object.c
     ${SOURCE_DIR}/objects/button.c
     ${SOURCE_DIR}/objects/client.c
     ${SOURCE_DIR}/objects/drawable.c
