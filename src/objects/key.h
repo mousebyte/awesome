@@ -22,33 +22,31 @@
 #ifndef AWESOME_OBJECTS_KEY_H
 #define AWESOME_OBJECTS_KEY_H
 
-#include "common/luaobject.h"
+#include <xcb/xproto.h>
 #include <xkbcommon/xkbcommon.h>
+#include "common/array.h"
+#include "common/object.h"
 
-typedef struct keyb_t
-{
-    LUA_OBJECT_HEADER
+typedef struct keyb_t {
     /** Key modifier */
-    uint16_t modifiers;
+    uint16_t      modifiers;
     /** Keysym */
-    xcb_keysym_t keysym;
+    xcb_keysym_t  keysym;
     /** Keycode */
     xcb_keycode_t keycode;
 } keyb_t;
 
-extern lua_class_t key_class;
-LUA_OBJECT_FUNCS(key_class, keyb_t, key)
 DO_ARRAY(keyb_t *, key, DO_NOTHING)
 
-void key_class_setup(lua_State *);
+void luaC_register_key(lua_State *);
 
 void luaA_key_array_set(lua_State *, int, int, key_array_t *);
-int luaA_key_array_get(lua_State *, int, key_array_t *);
+int  luaA_key_array_get(lua_State *, int, key_array_t *);
 
-int luaA_pushmodifiers(lua_State *, uint16_t);
+int      luaA_pushmodifiers(lua_State *, uint16_t);
 uint16_t luaA_tomodifiers(lua_State *L, int ud);
 
-char * key_get_keysym_name(xkb_keysym_t keysym);
+char *key_get_keysym_name(xkb_keysym_t keysym);
 
 #endif
 
