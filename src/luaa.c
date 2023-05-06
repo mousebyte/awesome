@@ -43,18 +43,18 @@
 #define _GNU_SOURCE
 
 #include "luaa.h"
-#include "globalconf.h"
 #include "awesome.h"
 #include "common/backtrace.h"
 #include "common/version.h"
 #include "config.h"
 #include "event.h"
+#include "globalconf.h"
 #include "objects/client.h"
 #include "objects/drawable.h"
 #include "objects/drawin.h"
-#include "objects/selection_getter.h"
 #include "objects/screen.h"
 #include "objects/selection_acquire.h"
+#include "objects/selection_getter.h"
 #include "objects/selection_transfer.h"
 #include "objects/selection_watcher.h"
 #include "objects/tag.h"
@@ -65,8 +65,8 @@
 #include "xkb.h"
 #include "xrdb.h"
 
-#include <lua.h>
 #include <lauxlib.h>
+#include <lua.h>
 #include <lualib.h>
 
 /* for strings and Unicode handling */
@@ -91,8 +91,6 @@ extern const struct luaL_Reg awesome_mouse_methods[];
 extern const struct luaL_Reg awesome_mouse_meta[];
 extern const struct luaL_Reg awesome_root_methods[];
 extern const struct luaL_Reg awesome_root_meta[];
-
-signal_array_t global_signals;
 
 /** A call into the Lua code aborted with an error.
  *
@@ -193,32 +191,27 @@ static char *conffile;
 /** Check whether a composite manager is running.
  * \return True if such a manager is running.
  */
-static bool
-composite_manager_running(void)
-{
-    xcb_intern_atom_reply_t *atom_r;
+static bool composite_manager_running(void) {
+    xcb_intern_atom_reply_t         *atom_r;
     xcb_get_selection_owner_reply_t *selection_r;
-    char *atom_name;
-    bool result;
+    char                            *atom_name;
+    bool                             result;
 
-    if(!(atom_name = xcb_atom_name_by_screen("_NET_WM_CM", globalconf.default_screen)))
-    {
+    if (!(atom_name = xcb_atom_name_by_screen("_NET_WM_CM", globalconf.default_screen))) {
         warn("error getting composite manager atom");
         return false;
     }
 
-    atom_r = xcb_intern_atom_reply(globalconf.connection,
-                                   xcb_intern_atom_unchecked(globalconf.connection, false,
-                                                             a_strlen(atom_name), atom_name),
-                                   NULL);
+    atom_r = xcb_intern_atom_reply(
+        globalconf.connection,
+        xcb_intern_atom_unchecked(globalconf.connection, false, a_strlen(atom_name), atom_name),
+        NULL);
     p_delete(&atom_name);
-    if(!atom_r)
-        return false;
+    if (!atom_r) return false;
 
-    selection_r = xcb_get_selection_owner_reply(globalconf.connection,
-                                                xcb_get_selection_owner_unchecked(globalconf.connection,
-                                                                                  atom_r->atom),
-                                                NULL);
+    selection_r = xcb_get_selection_owner_reply(
+        globalconf.connection,
+        xcb_get_selection_owner_unchecked(globalconf.connection, atom_r->atom), NULL);
     p_delete(&atom_r);
 
     result = selection_r != NULL && selection_r->owner != XCB_NONE;
@@ -232,13 +225,9 @@ composite_manager_running(void)
  * @staticfct quit
  * @noreturn
  */
-static int
-luaA_quit(lua_State *L)
-{
-    if (!lua_isnoneornil(L, 1))
-        globalconf.exit_code = luaL_checkinteger(L, 1);
-    if (globalconf.loop == NULL)
-        globalconf.loop = g_main_loop_new(NULL, FALSE);
+static int luaA_quit(lua_State *L) {
+    if (!lua_isnoneornil(L, 1)) globalconf.exit_code = luaL_checkinteger(L, 1);
+    if (globalconf.loop == NULL) globalconf.loop = g_main_loop_new(NULL, FALSE);
     g_main_loop_quit(globalconf.loop);
     return 0;
 }
@@ -250,9 +239,7 @@ luaA_quit(lua_State *L)
  * @staticfct exec
  * @noreturn
  */
-static int
-luaA_exec(lua_State *L)
-{
+static int luaA_exec(lua_State *L) {
     const char *cmd = luaL_checkstring(L, 1);
 
     awesome_atexit(false);
@@ -265,9 +252,7 @@ luaA_exec(lua_State *L)
  * @staticfct restart
  * @noreturn
  */
-static int
-luaA_restart(lua_State *L)
-{
+static int luaA_restart(lua_State *L) {
     awesome_restart();
     return 0;
 }
@@ -280,11 +265,9 @@ luaA_restart(lua_State *L)
  * @treturn boolean true if the signal was successfully sent, else false
  * @staticfct kill
  */
-static int
-luaA_kill(lua_State *L)
-{
-    int pid = luaL_checknumber(L, 1);
-    int sig = luaA_checknumber_range(L, 2, 0, INT_MAX);
+static int luaA_kill(lua_State *L) {
+    int pid    = luaL_checknumber(L, 1);
+    int sig    = luaA_checknumber_range(L, 2, 0, INT_MAX);
 
     int result = kill(pid, sig);
     lua_pushboolean(L, result == 0);
@@ -296,9 +279,7 @@ luaA_kill(lua_State *L)
  * @staticfct sync
  * @noreturn
  */
-static int
-luaA_sync(lua_State *L)
-{
+static int luaA_sync(lua_State *L) {
     xcb_aux_sync(globalconf.connection);
     return 0;
 }
@@ -310,10 +291,8 @@ luaA_sync(lua_State *L)
  * @treturn gears.surface A cairo surface as light user datum.
  * @staticfct pixbuf_to_surface
  */
-static int
-luaA_pixbuf_to_surface(lua_State *L)
-{
-    GdkPixbuf *pixbuf = (GdkPixbuf *) lua_touserdata(L, 1);
+static int luaA_pixbuf_to_surface(lua_State *L) {
+    GdkPixbuf       *pixbuf  = (GdkPixbuf *)lua_touserdata(L, 1);
     cairo_surface_t *surface = draw_surface_from_pixbuf(pixbuf);
 
     /* lua has to make sure to free the ref or we have a leak */
@@ -328,16 +307,14 @@ luaA_pixbuf_to_surface(lua_State *L)
  * @treturn nil|string The error message, if any.
  * @staticfct load_image
  */
-static int
-luaA_load_image(lua_State *L)
-{
+static int luaA_load_image(lua_State *L) {
     /* TODO: Deprecate this function, Lua can use GdkPixbuf directly plus
      * awesome.pixbuf_to_surface
      */
 
-    GError *error = NULL;
-    const char *filename = luaL_checkstring(L, 1);
-    cairo_surface_t *surface = draw_load_image(L, filename, &error);
+    GError          *error    = NULL;
+    const char      *filename = luaL_checkstring(L, 1);
+    cairo_surface_t *surface  = draw_load_image(L, filename, &error);
     if (!surface) {
         lua_pushnil(L);
         lua_pushstring(L, error->message);
@@ -359,9 +336,7 @@ luaA_load_image(lua_State *L)
  * @staticfct set_preferred_icon_size
  * @noreturn
  */
-static int
-luaA_set_preferred_icon_size(lua_State *L)
-{
+static int luaA_set_preferred_icon_size(lua_State *L) {
     globalconf.preferred_icon_size = luaA_checkinteger_range(L, 1, 0, UINT32_MAX);
     return 0;
 }
@@ -370,11 +345,9 @@ luaA_set_preferred_icon_size(lua_State *L)
  * \param L The Lua VM state.
  * \return The number of elements pushed on stack.
  */
-static int
-luaA_mbstrlen(lua_State *L)
-{
+static int luaA_mbstrlen(lua_State *L) {
     const char *cmd = luaL_checkstring(L, 1);
-    lua_pushinteger(L, (ssize_t) mbstowcs(NULL, NONULL(cmd), 0));
+    lua_pushinteger(L, (ssize_t)mbstowcs(NULL, NONULL(cmd), 0));
     return 1;
 }
 
@@ -382,9 +355,7 @@ luaA_mbstrlen(lua_State *L)
  * \param L The Lua VM state.
  * \return The number of arguments pushed on the stack.
  */
-static int
-luaAe_type(lua_State *L)
-{
+static int luaAe_type(lua_State *L) {
     luaL_checkany(L, 1);
     lua_pushstring(L, luaA_typename(L, 1));
     return 1;
@@ -393,9 +364,7 @@ luaAe_type(lua_State *L)
 /** Replace various standards Lua functions with our own.
  * \param L The Lua VM state.
  */
-static void
-luaA_fixups(lua_State *L)
-{
+static void luaA_fixups(lua_State *L) {
     /* export string.wlen */
     lua_getglobal(L, "string");
     lua_pushcfunction(L, luaA_mbstrlen);
@@ -406,19 +375,24 @@ luaA_fixups(lua_State *L)
     lua_setglobal(L, "type");
 }
 
-static const char *
-get_modifier_name(int map_index)
-{
+static const char *get_modifier_name(int map_index) {
     switch (map_index) {
-        case XCB_MAP_INDEX_SHIFT:   return "Shift";
-        case XCB_MAP_INDEX_LOCK:    return "Lock";
-        case XCB_MAP_INDEX_CONTROL: return "Control";
-        case XCB_MAP_INDEX_1:       return "Mod1"; /* Alt */
-        case XCB_MAP_INDEX_2:       return "Mod2";
-        case XCB_MAP_INDEX_3:       return "Mod3";
-        case XCB_MAP_INDEX_4:       return "Mod4";
-        case XCB_MAP_INDEX_5:       return "Mod5";
-
+        case XCB_MAP_INDEX_SHIFT:
+            return "Shift";
+        case XCB_MAP_INDEX_LOCK:
+            return "Lock";
+        case XCB_MAP_INDEX_CONTROL:
+            return "Control";
+        case XCB_MAP_INDEX_1:
+            return "Mod1"; /* Alt */
+        case XCB_MAP_INDEX_2:
+            return "Mod2";
+        case XCB_MAP_INDEX_3:
+            return "Mod3";
+        case XCB_MAP_INDEX_4:
+            return "Mod4";
+        case XCB_MAP_INDEX_5:
+            return "Mod5";
     }
 
     return 0; /* \0 */
@@ -428,15 +402,12 @@ get_modifier_name(int map_index)
  * Will return the UTF-32 codepoint IF AND ONLY IF the input is exactly one
  * valid UTF-8 character. Otherwise, it will return zero.
  */
-static uint32_t
-one_utf8_to_utf32(const char* input, const size_t length) {
+static uint32_t one_utf8_to_utf32(const char *input, const size_t length) {
     gunichar character = g_utf8_get_char_validated(input, length);
     // Return 0 if there is more than one UTF-8 character:
-    if (g_unichar_to_utf8(character, NULL) != (gint)length)
-        return 0;
+    if (g_unichar_to_utf8(character, NULL) != (gint)length) return 0;
     // Return 0 if the character is invalid.
-    if (character == (gunichar)-1 || character == (gunichar)-2)
-        return 0;
+    if (character == (gunichar)-1 || character == (gunichar)-2) return 0;
     return character;
 }
 
@@ -460,55 +431,46 @@ one_utf8_to_utf32(const char* input, const size_t length) {
  * @staticfct awful.keyboard.get_key_name
  */
 
-static int
-luaA_get_key_name(lua_State *L)
-{
+static int luaA_get_key_name(lua_State *L) {
     // check if argument is valid
-    if (lua_gettop(L) > 1 || lua_type(L, 1) != LUA_TSTRING)
-    {
+    if (lua_gettop(L) > 1 || lua_type(L, 1) != LUA_TSTRING) {
         return 0;
     }
 
-    const char* input = luaL_checkstring(L, 1);
+    const char         *input = luaL_checkstring(L, 1);
     const xkb_keysym_t *keysyms;
-    xkb_keysym_t keysym = XKB_KEY_NoSymbol;
-    const size_t length = strlen(input);
-    uint32_t ucs;
+    xkb_keysym_t        keysym = XKB_KEY_NoSymbol;
+    const size_t        length = strlen(input);
+    uint32_t            ucs;
 
     /* Checking for the three possible syntaxes awful.key uses:
      * 1: #keycode (#8 to #255, any other is invalid)
      * 2: the symbol itself (the result of xkb_keysym_to_utf8, e.g. @ for at).
      * 3: the keysym
      */
-    if (input[0] == '#' && input[1] != '\0' && length < 5) // syntax #1
+    if (input[0] == '#' && input[1] != '\0' && length < 5)  // syntax #1
     {
-        int keycode_from_hash = atoi(input+1);
+        int                keycode_from_hash = atoi(input + 1);
         // We discard keycodes with invalid values:
-        const xcb_setup_t *setup = xcb_get_setup(globalconf.connection);
-        if (keycode_from_hash < setup->min_keycode ||
-            keycode_from_hash > setup->max_keycode)
+        const xcb_setup_t *setup             = xcb_get_setup(globalconf.connection);
+        if (keycode_from_hash < setup->min_keycode || keycode_from_hash > setup->max_keycode)
             return 0;
-        xkb_keycode_t keycode = (xkb_keycode_t) keycode_from_hash;
-        struct xkb_keymap *keymap = xkb_state_get_keymap(globalconf.xkb_state);
+        xkb_keycode_t      keycode = (xkb_keycode_t)keycode_from_hash;
+        struct xkb_keymap *keymap  = xkb_state_get_keymap(globalconf.xkb_state);
         xkb_keymap_key_get_syms_by_level(keymap, keycode, 0, 0, &keysyms);
         keysym = keysyms[0];
-    }
-    else if ((ucs = one_utf8_to_utf32(input, length)) > 0) //syntax #2
+    } else if ((ucs = one_utf8_to_utf32(input, length)) > 0)  // syntax #2
         keysym = xkb_utf32_to_keysym_compat(ucs);
-    else //syntax #3
+    else  // syntax #3
         keysym = xkb_keysym_from_name(input, XKB_KEYSYM_NO_FLAGS);
 
-    if (keysym == XKB_KEY_NoSymbol)
-        return 0;
-    else
-    {
+    if (keysym == XKB_KEY_NoSymbol) return 0;
+    else {
         char *name = key_get_keysym_name(keysym);
         lua_pushstring(L, name);
         char utfname[8];
-        if (xkb_keysym_to_utf8(keysym, utfname, 8) > 0)
-            lua_pushstring(L, utfname);
-        else
-            return 1; // this will make the second returned value a nil
+        if (xkb_keysym_to_utf8(keysym, utfname, 8) > 0) lua_pushstring(L, utfname);
+        else return 1;  // this will make the second returned value a nil
     }
     return 2;
 }
@@ -564,15 +526,13 @@ luaA_get_key_name(lua_State *L)
  * Modifiers can change over time, given they are currently not tracked, just
  * query them each time. Use with moderation.
  */
-static int luaA_get_modifiers(lua_State *L)
-{
-    xcb_get_modifier_mapping_reply_t *mods = xcb_get_modifier_mapping_reply(globalconf.connection,
-            xcb_get_modifier_mapping(globalconf.connection), NULL);
-    if (!mods)
-        return 0;
+static int luaA_get_modifiers(lua_State *L) {
+    xcb_get_modifier_mapping_reply_t *mods = xcb_get_modifier_mapping_reply(
+        globalconf.connection, xcb_get_modifier_mapping(globalconf.connection), NULL);
+    if (!mods) return 0;
 
-    xcb_keycode_t *mappings = xcb_get_modifier_mapping_keycodes(mods);
-    struct xkb_keymap *keymap = xkb_state_get_keymap(globalconf.xkb_state);
+    xcb_keycode_t     *mappings = xcb_get_modifier_mapping_keycodes(mods);
+    struct xkb_keymap *keymap   = xkb_state_get_keymap(globalconf.xkb_state);
 
     lua_newtable(L);
 
@@ -587,7 +547,7 @@ static int luaA_get_modifiers(lua_State *L)
             xkb_keymap_key_get_syms_by_level(keymap, key_code, 0, 0, &keysyms);
             if (keysyms != NULL) {
                 /* The +1 because j starts at zero and Lua at 1 */
-                lua_pushinteger(L, j+1);
+                lua_pushinteger(L, j + 1);
 
                 lua_newtable(L);
 
@@ -622,19 +582,17 @@ static int luaA_get_modifiers(lua_State *L)
  * @tfield table _active_modifiers
  */
 
-static int luaA_get_active_modifiers(lua_State *L)
-{
+static int luaA_get_active_modifiers(lua_State *L) {
     int count = 1;
     lua_newtable(L);
 
     for (int i = XCB_MAP_INDEX_SHIFT; i <= XCB_MAP_INDEX_5; i++) {
-        const int active = xkb_state_mod_index_is_active (globalconf.xkb_state, i,
-            XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_EFFECTIVE
-        );
+        const int active = xkb_state_mod_index_is_active(
+            globalconf.xkb_state, i, XKB_STATE_MODS_DEPRESSED | XKB_STATE_MODS_EFFECTIVE);
 
         if (active) {
             lua_pushstring(L, get_modifier_name(i));
-            lua_rawseti(L,-2, count++);
+            lua_rawseti(L, -2, count++);
         }
     }
 
@@ -719,72 +677,58 @@ static int luaA_get_active_modifiers(lua_State *L)
  * @tfield string icon_path
  */
 
-static int
-luaA_awesome_index(lua_State *L)
-{
-    if(luaA_usemetatable(L, 1, 2))
-        return 1;
+static int luaA_awesome_index(lua_State *L) {
+    if (luaA_usemetatable(L, 1, 2)) return 1;
 
     const char *buf = luaL_checkstring(L, 2);
 
-    if(A_STREQ(buf, "conffile"))
-    {
+    if (A_STREQ(buf, "conffile")) {
         lua_pushstring(L, conffile);
         return 1;
     }
 
-    if(A_STREQ(buf, "version"))
-    {
+    if (A_STREQ(buf, "version")) {
         lua_pushstring(L, awesome_version_string());
         return 1;
     }
 
-    if(A_STREQ(buf, "release"))
-    {
+    if (A_STREQ(buf, "release")) {
         lua_pushstring(L, awesome_release_string());
         return 1;
     }
 
-    if(A_STREQ(buf, "api_level"))
-    {
+    if (A_STREQ(buf, "api_level")) {
         lua_pushinteger(L, globalconf.api_level);
         return 1;
     }
 
-    if(A_STREQ(buf, "startup"))
-    {
+    if (A_STREQ(buf, "startup")) {
         lua_pushboolean(L, globalconf.loop == NULL);
         return 1;
     }
 
-    if(A_STREQ(buf, "_modifiers"))
-    {
+    if (A_STREQ(buf, "_modifiers")) {
         luaA_get_modifiers(L);
         return 1;
     }
 
-    if(A_STREQ(buf, "_active_modifiers"))
-    {
+    if (A_STREQ(buf, "_active_modifiers")) {
         luaA_get_active_modifiers(L);
         return 1;
     }
 
-    if(A_STREQ(buf, "startup_errors"))
-    {
-        if (globalconf.startup_errors.len == 0)
-            return 0;
+    if (A_STREQ(buf, "startup_errors")) {
+        if (globalconf.startup_errors.len == 0) return 0;
         lua_pushstring(L, globalconf.startup_errors.s);
         return 1;
     }
 
-    if(A_STREQ(buf, "composite_manager_running"))
-    {
+    if (A_STREQ(buf, "composite_manager_running")) {
         lua_pushboolean(L, composite_manager_running());
         return 1;
     }
 
-    if(A_STREQ(buf, "hostname"))
-    {
+    if (A_STREQ(buf, "hostname")) {
         /* No good way to handle failures... */
         char hostname[256] = "";
         gethostname(&hostname[0], countof(hostname));
@@ -794,14 +738,12 @@ luaA_awesome_index(lua_State *L)
         return 1;
     }
 
-    if(A_STREQ(buf, "themes_path"))
-    {
+    if (A_STREQ(buf, "themes_path")) {
         lua_pushliteral(L, AWESOME_THEMES_PATH);
         return 1;
     }
 
-    if(A_STREQ(buf, "icon_path"))
-    {
+    if (A_STREQ(buf, "icon_path")) {
         lua_pushliteral(L, AWESOME_ICON_PATH);
         return 1;
     }
@@ -816,9 +758,7 @@ luaA_awesome_index(lua_State *L)
  * @staticfct connect_signal
  * @noreturn
  */
-static int
-luaA_awesome_connect_signal(lua_State *L)
-{
+static int luaA_awesome_connect_signal(lua_State *L) {
     const char *name = luaL_checkstring(L, 1);
     luaA_checkfunction(L, 2);
     signal_connect(&global_signals, name, luaA_object_ref(L, 2));
@@ -832,14 +772,11 @@ luaA_awesome_connect_signal(lua_State *L)
  * @staticfct disconnect_signal
  * @noreturn
  */
-static int
-luaA_awesome_disconnect_signal(lua_State *L)
-{
+static int luaA_awesome_disconnect_signal(lua_State *L) {
     const char *name = luaL_checkstring(L, 1);
     luaA_checkfunction(L, 2);
     const void *func = lua_topointer(L, 2);
-    if (signal_disconnect(&global_signals, name, func))
-        luaA_object_unref(L, (void *) func);
+    if (signal_disconnect(&global_signals, name, func)) luaA_object_unref(L, (void *)func);
     return 0;
 }
 
@@ -850,18 +787,13 @@ luaA_awesome_disconnect_signal(lua_State *L)
  * @staticfct emit_signal
  * @noreturn
  */
-static int
-luaA_awesome_emit_signal(lua_State *L)
-{
+static int luaA_awesome_emit_signal(lua_State *L) {
     signal_object_emit(L, &global_signals, luaL_checkstring(L, 1), lua_gettop(L) - 1);
     return 0;
 }
 
-static int
-luaA_panic(lua_State *L)
-{
-    warn("unprotected error in call to Lua API (%s)",
-         lua_tostring(L, -1));
+static int luaA_panic(lua_State *L) {
+    warn("unprotected error in call to Lua API (%s)", lua_tostring(L, -1));
     buffer_t buf;
     backtrace_get(&buf);
     warn("dumping backtrace\n%s", buf.s);
@@ -871,51 +803,40 @@ luaA_panic(lua_State *L)
 }
 
 #if LUA_VERSION_NUM >= 502
-static const char *
-luaA_tolstring(lua_State *L, int idx, size_t *len)
-{
+static const char *luaA_tolstring(lua_State *L, int idx, size_t *len) {
     return luaL_tolstring(L, idx, len);
 }
 #else
-static const char *
-luaA_tolstring(lua_State *L, int idx, size_t *len)
-{
+static const char *luaA_tolstring(lua_State *L, int idx, size_t *len) {
     /* Try using the metatable. If that fails, push the value itself onto
      * the stack.
      */
-    if (!luaL_callmeta(L, idx, "__tostring"))
-        lua_pushvalue(L, idx);
+    if (!luaL_callmeta(L, idx, "__tostring")) lua_pushvalue(L, idx);
 
     switch (lua_type(L, -1)) {
-    case LUA_TSTRING:
-        lua_pushvalue(L, -1);
-        break;
-    case LUA_TBOOLEAN:
-        if (lua_toboolean(L, -1))
-            lua_pushliteral(L, "true");
-        else
-            lua_pushliteral(L, "false");
-        break;
-    case LUA_TNUMBER:
-        lua_pushfstring(L, "%f", lua_tonumber(L, -1));
-        break;
-    case LUA_TNIL:
-        lua_pushstring(L, "nil");
-        break;
-    default:
-        lua_pushfstring(L, "%s: %p",
-                lua_typename(L, lua_type(L, -1)),
-                lua_topointer(L, -1));
-        break;
+        case LUA_TSTRING:
+            lua_pushvalue(L, -1);
+            break;
+        case LUA_TBOOLEAN:
+            if (lua_toboolean(L, -1)) lua_pushliteral(L, "true");
+            else lua_pushliteral(L, "false");
+            break;
+        case LUA_TNUMBER:
+            lua_pushfstring(L, "%f", lua_tonumber(L, -1));
+            break;
+        case LUA_TNIL:
+            lua_pushstring(L, "nil");
+            break;
+        default:
+            lua_pushfstring(L, "%s: %p", lua_typename(L, lua_type(L, -1)), lua_topointer(L, -1));
+            break;
     }
     lua_remove(L, -2);
     return lua_tolstring(L, -1, len);
 }
 #endif
 
-static int
-luaA_dofunction_on_error(lua_State *L)
-{
+static int luaA_dofunction_on_error(lua_State *L) {
     /* Convert error to string, to prevent a follow-up error with lua_concat. */
     luaA_tolstring(L, -1, NULL);
 
@@ -924,8 +845,7 @@ luaA_dofunction_on_error(lua_State *L)
     /* emit error signal */
     signal_object_emit(L, &global_signals, "debug::error", 1);
 
-    if(!luaL_dostring(L, "return debug.traceback(\"error while running function!\", 3)"))
-    {
+    if (!luaL_dostring(L, "return debug.traceback(\"error while running function!\", 3)")) {
         /* Move traceback before error */
         lua_insert(L, -2);
         /* Insert sentence */
@@ -937,9 +857,7 @@ luaA_dofunction_on_error(lua_State *L)
     return 1;
 }
 
-static void
-setup_awesome_signals(lua_State *L)
-{
+static void setup_awesome_signals(lua_State *L) {
     lua_getglobal(L, "awesome");
     lua_pushstring(L, "unix_signal");
     lua_newtable(L);
@@ -1034,29 +952,22 @@ setup_awesome_signals(lua_State *L)
 }
 
 /* Add things to the string on top of the stack */
-static void
-add_to_search_path(lua_State *L, string_array_t *searchpath, bool for_lua)
-{
-    if (LUA_TSTRING != lua_type(L, -1))
-    {
+static void add_to_search_path(lua_State *L, string_array_t *searchpath, bool for_lua) {
+    if (LUA_TSTRING != lua_type(L, -1)) {
         warn("package.path is not a string");
         return;
     }
 
-    foreach(entry, *searchpath)
-    {
-        int components;
+    foreach (entry, *searchpath) {
+        int    components;
         size_t len = a_strlen(*entry);
         lua_pushliteral(L, ";");
         lua_pushlstring(L, *entry, len);
-        if (for_lua)
-            lua_pushliteral(L, "/?.lua");
-        else
-            lua_pushliteral(L, "/?.so");
+        if (for_lua) lua_pushliteral(L, "/?.lua");
+        else lua_pushliteral(L, "/?.so");
         lua_concat(L, 3);
 
-        if (for_lua)
-        {
+        if (for_lua) {
             lua_pushliteral(L, ";");
             lua_pushlstring(L, *entry, len);
             lua_pushliteral(L, "/?/init.lua");
@@ -1070,8 +981,7 @@ add_to_search_path(lua_State *L, string_array_t *searchpath, bool for_lua)
     }
 
     /* add Lua lib path (/usr/share/awesome/lib by default) */
-    if (for_lua)
-    {
+    if (for_lua) {
         lua_pushliteral(L, ";" AWESOME_LUA_LIB_PATH "/?.lua");
         lua_pushliteral(L, ";" AWESOME_LUA_LIB_PATH "/?/init.lua");
         lua_concat(L, 3); /* concatenate with thing on top of the stack when we were called */
@@ -1084,36 +994,33 @@ add_to_search_path(lua_State *L, string_array_t *searchpath, bool for_lua)
 /** Initialize the Lua VM
  * \param xdg An xdg handle to use to get XDG basedir.
  */
-void
-luaA_init(xdgHandle* xdg, string_array_t *searchpath)
-{
-    lua_State *L;
-    static const struct luaL_Reg awesome_lib[] =
-    {
-        { "quit", luaA_quit },
-        { "exec", luaA_exec },
-        { "spawn", luaA_spawn },
-        { "restart", luaA_restart },
-        { "connect_signal", luaA_awesome_connect_signal },
-        { "disconnect_signal", luaA_awesome_disconnect_signal },
-        { "emit_signal", luaA_awesome_emit_signal },
-        { "systray", luaA_systray },
-        { "load_image", luaA_load_image },
-        { "pixbuf_to_surface", luaA_pixbuf_to_surface },
-        { "set_preferred_icon_size", luaA_set_preferred_icon_size },
-        { "register_xproperty", luaA_register_xproperty },
-        { "set_xproperty", luaA_set_xproperty },
-        { "get_xproperty", luaA_get_xproperty },
-        { "__index", luaA_awesome_index },
-        { "__newindex", luaA_default_newindex },
-        { "xkb_set_layout_group", luaA_xkb_set_layout_group},
-        { "xkb_get_layout_group", luaA_xkb_get_layout_group},
-        { "xkb_get_group_names", luaA_xkb_get_group_names},
-        { "xrdb_get_value", luaA_xrdb_get_value},
-        { "kill", luaA_kill},
-        { "sync", luaA_sync},
-        { "_get_key_name", luaA_get_key_name},
-        { NULL, NULL }
+void luaA_init(xdgHandle *xdg, string_array_t *searchpath) {
+    lua_State                   *L;
+    static const struct luaL_Reg awesome_lib[] = {
+        {"quit",                    luaA_quit                     },
+        {"exec",                    luaA_exec                     },
+        {"spawn",                   luaA_spawn                    },
+        {"restart",                 luaA_restart                  },
+        {"connect_signal",          luaA_awesome_connect_signal   },
+        {"disconnect_signal",       luaA_awesome_disconnect_signal},
+        {"emit_signal",             luaA_awesome_emit_signal      },
+        {"systray",                 luaA_systray                  },
+        {"load_image",              luaA_load_image               },
+        {"pixbuf_to_surface",       luaA_pixbuf_to_surface        },
+        {"set_preferred_icon_size", luaA_set_preferred_icon_size  },
+        {"register_xproperty",      luaA_register_xproperty       },
+        {"set_xproperty",           luaA_set_xproperty            },
+        {"get_xproperty",           luaA_get_xproperty            },
+        {"__index",                 luaA_awesome_index            },
+        {"__newindex",              luaA_default_newindex         },
+        {"xkb_set_layout_group",    luaA_xkb_set_layout_group     },
+        {"xkb_get_layout_group",    luaA_xkb_get_layout_group     },
+        {"xkb_get_group_names",     luaA_xkb_get_group_names      },
+        {"xrdb_get_value",          luaA_xrdb_get_value           },
+        {"kill",                    luaA_kill                     },
+        {"sync",                    luaA_sync                     },
+        {"_get_key_name",           luaA_get_key_name             },
+        {NULL,                      NULL                          }
     };
 
     L = globalconf.L.real_L_dont_use_directly = luaL_newstate();
@@ -1195,8 +1102,7 @@ luaA_init(xdgHandle* xdg, string_array_t *searchpath)
 
     /* add Lua search paths */
     lua_getglobal(L, "package");
-    if (LUA_TTABLE != lua_type(L, 1))
-    {
+    if (LUA_TTABLE != lua_type(L, 1)) {
         warn("package is not a table");
         return;
     }
@@ -1211,20 +1117,14 @@ luaA_init(xdgHandle* xdg, string_array_t *searchpath)
     lua_pop(L, 1); /* pop "package" */
 }
 
-static void
-luaA_startup_error(const char *err)
-{
-    if (globalconf.startup_errors.len > 0)
-        buffer_addsl(&globalconf.startup_errors, "\n\n");
+static void luaA_startup_error(const char *err) {
+    if (globalconf.startup_errors.len > 0) buffer_addsl(&globalconf.startup_errors, "\n\n");
     buffer_adds(&globalconf.startup_errors, err);
 }
 
-static bool
-luaA_loadrc(const char *confpath)
-{
+static bool luaA_loadrc(const char *confpath) {
     lua_State *L = globalconf_get_lua_State();
-    if(luaL_loadfile(L, confpath))
-    {
+    if (luaL_loadfile(L, confpath)) {
         const char *err = lua_tostring(L, -1);
         luaA_startup_error(err);
         fprintf(stderr, "%s\n", err);
@@ -1238,8 +1138,7 @@ luaA_loadrc(const char *confpath)
     /* Move error handling function before function */
     lua_pushcfunction(L, luaA_dofunction_on_error);
     lua_insert(L, -2);
-    if(!lua_pcall(L, 0, 0, -2))
-    {
+    if (!lua_pcall(L, 0, 0, -2)) {
         /* Pop luaA_dofunction_on_error */
         lua_pop(L, 1);
         return true;
@@ -1261,11 +1160,9 @@ luaA_loadrc(const char *confpath)
  * \param confpatharg The configuration file to load.
  * \param run Run the configuration file.
  */
-bool
-luaA_parserc(xdgHandle* xdg, const char *confpatharg)
-{
+bool luaA_parserc(xdgHandle *xdg, const char *confpatharg) {
     const char *confpath = luaA_find_config(xdg, confpatharg, luaA_loadrc);
-    bool ret = confpath != NULL;
+    bool        ret      = confpath != NULL;
     p_delete(&confpath);
 
     return ret;
@@ -1277,24 +1174,20 @@ luaA_parserc(xdgHandle* xdg, const char *confpatharg)
  * \param callback The callback to call.
  */
 const char *
-luaA_find_config(xdgHandle* xdg, const char *confpatharg, luaA_config_callback *callback)
-{
+luaA_find_config(xdgHandle *xdg, const char *confpatharg, luaA_config_callback *callback) {
     char *confpath = NULL;
 
-    if(confpatharg && callback(confpatharg))
-    {
+    if (confpatharg && callback(confpatharg)) {
         return a_strdup(confpatharg);
     }
 
-    confpath = xdgConfigFind("awesome/rc.lua", xdg);
+    confpath  = xdgConfigFind("awesome/rc.lua", xdg);
 
     char *tmp = confpath;
 
     /* confpath is "string1\0string2\0string3\0\0" */
-    while(*tmp)
-    {
-        if(callback(tmp))
-        {
+    while (*tmp) {
+        if (callback(tmp)) {
             const char *ret = a_strdup(tmp);
             p_delete(&confpath);
             return ret;
@@ -1303,52 +1196,21 @@ luaA_find_config(xdgHandle* xdg, const char *confpatharg, luaA_config_callback *
     }
     p_delete(&confpath);
 
-    if(callback(AWESOME_DEFAULT_CONF))
-    {
+    if (callback(AWESOME_DEFAULT_CONF)) {
         return a_strdup(AWESOME_DEFAULT_CONF);
     }
 
     return NULL;
 }
 
-int
-luaA_class_index_miss_property(lua_State *L, lua_object_t *obj)
-{
-    signal_object_emit(L, &global_signals, "debug::index::miss", 2);
-    return 0;
-}
-
-int
-luaA_class_newindex_miss_property(lua_State *L, lua_object_t *obj)
-{
-    signal_object_emit(L, &global_signals, "debug::newindex::miss", 3);
-    return 0;
-}
-
-void
-luaA_emit_startup()
-{
+void luaA_emit_startup() {
     lua_State *L = globalconf_get_lua_State();
     signal_object_emit(L, &global_signals, "startup", 0);
 }
 
-void
-luaA_emit_refresh()
-{
+void luaA_emit_refresh() {
     lua_State *L = globalconf_get_lua_State();
     signal_object_emit(L, &global_signals, "refresh", 0);
-}
-
-int
-luaA_default_index(lua_State *L)
-{
-    return luaA_class_index_miss_property(L, NULL);
-}
-
-int
-luaA_default_newindex(lua_State *L)
-{
-    return luaA_class_newindex_miss_property(L, NULL);
 }
 
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80

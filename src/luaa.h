@@ -22,33 +22,32 @@
 #ifndef AWESOME_LUA_H
 #define AWESOME_LUA_H
 
-#include <lua.h>
 #include <lauxlib.h>
+#include <lua.h>
 
 #include <basedir.h>
 
-#include "draw.h"
 #include "common/lualib.h"
-#include "common/luaclass.h"
+#include "draw.h"
 
 #if !(501 <= LUA_VERSION_NUM && LUA_VERSION_NUM < 505)
-#error "Awesome only supports Lua versions 5.1-5.4 and LuaJIT2, please refer to https://awesomewm.org/apidoc/documentation/10-building-and-testing.md.html#Building"
+#error \
+    "Awesome only supports Lua versions 5.1-5.4 and LuaJIT2, please refer to https://awesomewm.org/apidoc/documentation/10-building-and-testing.md.html#Building"
 #endif
 
-#define luaA_deprecate(L, repl) \
-    do { \
-        luaA_warn(L, "%s: This function is deprecated and will be removed, see %s", \
-                  __FUNCTION__, repl); \
-        lua_pushlstring(L, __FUNCTION__, sizeof(__FUNCTION__)); \
-        signal_object_emit(L, &global_signals, "debug::deprecation", 1); \
-    } while(0)
+#define luaA_deprecate(L, repl)                                                                    \
+    do {                                                                                           \
+        luaA_warn(                                                                                 \
+            L, "%s: This function is deprecated and will be removed, see %s", __FUNCTION__, repl); \
+        lua_pushlstring(L, __FUNCTION__, sizeof(__FUNCTION__));                                    \
+        signal_object_emit(L, &global_signals, "debug::deprecation", 1);                           \
+    } while (0)
 
-static inline void free_string(char **c)
-{
+static inline void free_string(char **c) {
     p_delete(c);
 }
 
-DO_ARRAY(char*, string, free_string)
+DO_ARRAY(char *, string, free_string)
 
 /** Print a warning about some Lua code.
  * This is less mean than luaL_error() which setjmp via lua_error() and kills
@@ -56,9 +55,8 @@ DO_ARRAY(char*, string, free_string)
  * \param L The Lua VM state.
  * \param fmt The warning message.
  */
-static inline void __attribute__ ((format(printf, 2, 3)))
-luaA_warn(lua_State *L, const char *fmt, ...)
-{
+static inline void __attribute__((format(printf, 2, 3)))
+luaA_warn(lua_State *L, const char *fmt, ...) {
     va_list ap;
     luaL_where(L, 1);
     fprintf(stderr, "%s%sW: ", a_current_time_str(), lua_tostring(L, -1));
@@ -75,11 +73,8 @@ luaA_warn(lua_State *L, const char *fmt, ...)
 #endif
 }
 
-static inline int
-luaA_typerror(lua_State *L, int narg, const char *tname)
-{
-    const char *msg = lua_pushfstring(L, "%s expected, got %s",
-                                      tname, luaL_typename(L, narg));
+static inline int luaA_typerror(lua_State *L, int narg, const char *tname) {
+    const char *msg = lua_pushfstring(L, "%s expected, got %s", tname, luaL_typename(L, narg));
 #if LUA_VERSION_NUM >= 502
     luaL_traceback(L, L, NULL, 2);
     lua_concat(L, 2);
@@ -87,11 +82,9 @@ luaA_typerror(lua_State *L, int narg, const char *tname)
     return luaL_argerror(L, narg, msg);
 }
 
-static inline int
-luaA_rangerror(lua_State *L, int narg, double min, double max)
-{
-    const char *msg = lua_pushfstring(L, "value in [%f, %f] expected, got %f",
-                                      min, max, (double) lua_tonumber(L, narg));
+static inline int luaA_rangerror(lua_State *L, int narg, double min, double max) {
+    const char *msg = lua_pushfstring(
+        L, "value in [%f, %f] expected, got %f", min, max, (double)lua_tonumber(L, narg));
 #if LUA_VERSION_NUM >= 502
     luaL_traceback(L, L, NULL, 2);
     lua_concat(L, 2);
@@ -99,9 +92,7 @@ luaA_rangerror(lua_State *L, int narg, double min, double max)
     return luaL_argerror(L, narg, msg);
 }
 
-static inline void
-luaA_getuservalue(lua_State *L, int idx)
-{
+static inline void luaA_getuservalue(lua_State *L, int idx) {
 #if LUA_VERSION_NUM >= 502
     lua_getuservalue(L, idx);
 #else
@@ -109,9 +100,7 @@ luaA_getuservalue(lua_State *L, int idx)
 #endif
 }
 
-static inline void
-luaA_setuservalue(lua_State *L, int idx)
-{
+static inline void luaA_setuservalue(lua_State *L, int idx) {
 #if LUA_VERSION_NUM >= 502
     lua_setuservalue(L, idx);
 #else
@@ -119,9 +108,7 @@ luaA_setuservalue(lua_State *L, int idx)
 #endif
 }
 
-static inline size_t
-luaA_rawlen(lua_State *L, int idx)
-{
+static inline size_t luaA_rawlen(lua_State *L, int idx) {
 #if LUA_VERSION_NUM >= 502
     return lua_rawlen(L, idx);
 #else
@@ -129,9 +116,7 @@ luaA_rawlen(lua_State *L, int idx)
 #endif
 }
 
-static inline void
-luaA_registerlib(lua_State *L, const char *libname, const luaL_Reg *l)
-{
+static inline void luaA_registerlib(lua_State *L, const char *libname, const luaL_Reg *l) {
     assert(libname);
 #if LUA_VERSION_NUM >= 502
     lua_newtable(L);
@@ -143,9 +128,7 @@ luaA_registerlib(lua_State *L, const char *libname, const luaL_Reg *l)
 #endif
 }
 
-static inline void
-luaA_setfuncs(lua_State *L, const luaL_Reg *l)
-{
+static inline void luaA_setfuncs(lua_State *L, const luaL_Reg *l) {
 #if LUA_VERSION_NUM >= 502
     luaL_setfuncs(L, l, 0);
 #else
@@ -153,99 +136,83 @@ luaA_setfuncs(lua_State *L, const luaL_Reg *l)
 #endif
 }
 
-static inline bool
-luaA_checkboolean(lua_State *L, int n)
-{
-    if(!lua_isboolean(L, n))
-        luaA_typerror(L, n, "boolean");
+static inline bool luaA_checkboolean(lua_State *L, int n) {
+    if (!lua_isboolean(L, n)) luaA_typerror(L, n, "boolean");
     return lua_toboolean(L, n);
 }
 
 static inline lua_Number
-luaA_getopt_number(lua_State *L, int idx, const char *name, lua_Number def)
-{
+luaA_getopt_number(lua_State *L, int idx, const char *name, lua_Number def) {
     lua_getfield(L, idx, name);
-    if (lua_isnil(L, -1) || lua_isnumber(L, -1))
-        def = luaL_optnumber(L, -1, def);
+    if (lua_isnil(L, -1) || lua_isnumber(L, -1)) def = luaL_optnumber(L, -1, def);
     lua_pop(L, 1);
     return def;
 }
 
 static inline lua_Number
-luaA_checknumber_range(lua_State *L, int n, lua_Number min, lua_Number max)
-{
+luaA_checknumber_range(lua_State *L, int n, lua_Number min, lua_Number max) {
     lua_Number result = lua_tonumber(L, n);
-    if (result < min || result > max)
-        luaA_rangerror(L, n, min, max);
+    if (result < min || result > max) luaA_rangerror(L, n, min, max);
     return result;
 }
 
 static inline lua_Number
-luaA_optnumber_range(lua_State *L, int narg, lua_Number def, lua_Number min, lua_Number max)
-{
-    if (lua_isnoneornil(L, narg))
-        return def;
+luaA_optnumber_range(lua_State *L, int narg, lua_Number def, lua_Number min, lua_Number max) {
+    if (lua_isnoneornil(L, narg)) return def;
     return luaA_checknumber_range(L, narg, min, max);
 }
 
-static inline lua_Number
-luaA_getopt_number_range(lua_State *L, int idx, const char *name, lua_Number def, lua_Number min, lua_Number max)
-{
+static inline lua_Number luaA_getopt_number_range(
+    lua_State  *L,
+    int         idx,
+    const char *name,
+    lua_Number  def,
+    lua_Number  min,
+    lua_Number  max) {
     lua_getfield(L, idx, name);
-    if (lua_isnil(L, -1) || lua_isnumber(L, -1))
-        def = luaA_optnumber_range(L, -1, def, min, max);
+    if (lua_isnil(L, -1) || lua_isnumber(L, -1)) def = luaA_optnumber_range(L, -1, def, min, max);
     lua_pop(L, 1);
     return def;
 }
 
-static inline int
-luaA_checkinteger(lua_State *L, int n)
-{
+static inline int luaA_checkinteger(lua_State *L, int n) {
     lua_Number d = lua_tonumber(L, n);
-    if (d != (int)d)
-        luaA_typerror(L, n, "integer");
+    if (d != (int)d) luaA_typerror(L, n, "integer");
     return d;
 }
 
-static inline lua_Integer
-luaA_optinteger (lua_State *L, int narg, lua_Integer def)
-{
+static inline lua_Integer luaA_optinteger(lua_State *L, int narg, lua_Integer def) {
     return luaL_opt(L, luaA_checkinteger, narg, def);
 }
 
-static inline int
-luaA_getopt_integer(lua_State *L, int idx, const char *name, lua_Integer def)
-{
+static inline int luaA_getopt_integer(lua_State *L, int idx, const char *name, lua_Integer def) {
     lua_getfield(L, idx, name);
-    if (lua_isnil(L, -1) || lua_isnumber(L, -1))
-        def = luaA_optinteger(L, -1, def);
+    if (lua_isnil(L, -1) || lua_isnumber(L, -1)) def = luaA_optinteger(L, -1, def);
     lua_pop(L, 1);
     return def;
 }
 
-static inline int
-luaA_checkinteger_range(lua_State *L, int n, lua_Number min, lua_Number max)
-{
+static inline int luaA_checkinteger_range(lua_State *L, int n, lua_Number min, lua_Number max) {
     int result = luaA_checkinteger(L, n);
-    if (result < min || result > max)
-        luaA_rangerror(L, n, min, max);
+    if (result < min || result > max) luaA_rangerror(L, n, min, max);
     return result;
 }
 
 static inline lua_Integer
-luaA_optinteger_range(lua_State *L, int narg, lua_Integer def, lua_Number min, lua_Number max)
-{
-    if (lua_isnoneornil(L, narg))
-        return def;
+luaA_optinteger_range(lua_State *L, int narg, lua_Integer def, lua_Number min, lua_Number max) {
+    if (lua_isnoneornil(L, narg)) return def;
     return luaA_checkinteger_range(L, narg, min, max);
 }
 
-static inline int
-luaA_getopt_integer_range(lua_State *L, int idx, const char *name, lua_Integer def, lua_Number min, lua_Number max)
-{
+static inline int luaA_getopt_integer_range(
+    lua_State  *L,
+    int         idx,
+    const char *name,
+    lua_Integer def,
+    lua_Number  min,
+    lua_Number  max) {
     lua_getfield(L, idx, name);
-    if (lua_isnil(L, -1) || lua_isnumber(L, -1))
-        def = luaA_optinteger_range(L, -1, def, min, max);
+    if (lua_isnil(L, -1) || lua_isnumber(L, -1)) def = luaA_optinteger_range(L, -1, def, min, max);
     lua_pop(L, 1);
     return def;
 }
@@ -255,9 +222,7 @@ luaA_getopt_integer_range(lua_State *L, int idx, const char *name, lua_Integer d
  * \param geometry The area geometry to push.
  * \return The number of elements pushed on stack.
  */
-static inline int
-luaA_pusharea(lua_State *L, area_t geometry)
-{
+static inline int luaA_pusharea(lua_State *L, area_t geometry) {
     lua_createtable(L, 0, 4);
     lua_pushinteger(L, geometry.x);
     lua_setfield(L, -2, "x");
@@ -278,12 +243,9 @@ luaA_pusharea(lua_State *L, area_t geometry)
  * be unregistered.
  * \return Always 0.
  */
-static inline int
-luaA_register(lua_State *L, int idx, int *ref)
-{
+static inline int luaA_register(lua_State *L, int idx, int *ref) {
     lua_pushvalue(L, idx);
-    if(*ref != LUA_REFNIL)
-        luaL_unref(L, LUA_REGISTRYINDEX, *ref);
+    if (*ref != LUA_REFNIL) luaL_unref(L, LUA_REGISTRYINDEX, *ref);
     *ref = luaL_ref(L, LUA_REGISTRYINDEX);
     return 0;
 }
@@ -292,9 +254,7 @@ luaA_register(lua_State *L, int idx, int *ref)
  * \param L The Lua stack.
  * \param ref A reference to an Lua object.
  */
-static inline void
-luaA_unregister(lua_State *L, int *ref)
-{
+static inline void luaA_unregister(lua_State *L, int *ref) {
     luaL_unref(L, LUA_REGISTRYINDEX, *ref);
     *ref = LUA_REFNIL;
 }
@@ -307,26 +267,21 @@ luaA_unregister(lua_State *L, int *ref)
  * be unregistered.
  * \return luaA_register value.
  */
-static inline int
-luaA_registerfct(lua_State *L, int idx, int *fct)
-{
+static inline int luaA_registerfct(lua_State *L, int idx, int *fct) {
     luaA_checkfunction(L, idx);
     return luaA_register(L, idx, fct);
 }
 
 typedef bool luaA_config_callback(const char *);
 
-void luaA_init(xdgHandle *, string_array_t *);
+void        luaA_init(xdgHandle *, string_array_t *);
 const char *luaA_find_config(xdgHandle *, const char *, luaA_config_callback *);
-bool luaA_parserc(xdgHandle *, const char *);
+bool        luaA_parserc(xdgHandle *, const char *);
 
 /** Global signals */
-extern signal_array_t global_signals;
+// TODO: put global signals in the registry or something
+// extern signal_array_t global_signals;
 
-int luaA_class_index_miss_property(lua_State *, lua_object_t *);
-int luaA_class_newindex_miss_property(lua_State *, lua_object_t *);
-int luaA_default_index(lua_State *);
-int luaA_default_newindex(lua_State *);
 void luaA_emit_startup(void);
 
 void luaA_systray_invalidate(void);

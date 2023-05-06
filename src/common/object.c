@@ -1,6 +1,6 @@
 #include "object.h"
 #include <moonauxlib.h>
-#include "signal.h"
+#include "signals.h"
 
 // NOTE: may expand with custom newindex later
 static int make_proptable(lua_State *L) {
