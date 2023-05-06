@@ -1,8 +1,9 @@
 /*
- * key.c - Key bindings configuration management
+ * key.c - Key class
  *
  * Copyright © 2008-2009 Julien Danjou <julien@danjou.info>
  * Copyright © 2008 Pierre Habouzit <madcoder@debian.org>
+ * Copyright © 2023 Abigail Teague <ateague063@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +44,6 @@
 /* XStringToKeysym() */
 #include <X11/Xlib.h>
 #include <glib.h>
-#include <xkbcommon/xkbcommon.h>
 
 /** Key object.
  *
