@@ -48,7 +48,7 @@
 #include "banning.h"
 #include "event.h"
 #include "luaa.h"
-// #include "objects/client.h"
+#include "objects/client.h"
 #include "objects/drawin.h"
 
 #include <stdio.h>
