@@ -46,20 +46,21 @@
 
 #include "objects/screen.h"
 #include "banning.h"
-#include "objects/client.h"
-#include "objects/drawin.h"
 #include "event.h"
+#include "luaa.h"
+// #include "objects/client.h"
+#include "objects/drawin.h"
 
 #include <stdio.h>
 
+#include <xcb/randr.h>
 #include <xcb/xcb.h>
 #include <xcb/xinerama.h>
-#include <xcb/randr.h>
 
 /* The XID that is used on fake screens. X11 guarantees that the top three bits
  * of a valid XID are zero, so this will not clash with anything.
  */
-#define FAKE_SCREEN_XID ((uint32_t) 0xffffffff)
+#define FAKE_SCREEN_XID ((uint32_t)0xffffffff)
 
 /** AwesomeWM is about to scan for existing screens.
  *
@@ -144,11 +145,11 @@
  * @see automatic_factory
  */
 
- /**
-  * The primary screen.
-  *
-  * @tfield screen primary
-  */
+/**
+ * The primary screen.
+ *
+ * @tfield screen primary
+ */
 
 /**
  * If `screen` objects are created automatically when new viewports are detected.
@@ -239,7 +240,6 @@
  * @readonly
  */
 
-
 /** Get the number of instances.
  *
  * @treturn table The number of screen objects alive.
@@ -256,21 +256,18 @@
  * @staticfct set_newindex_miss_handler
  */
 
-DO_ARRAY(xcb_randr_output_t, randr_output, DO_NOTHING);
+DO_ARRAY(xcb_randr_output_t, randr_output, DO_NOTHING)
 
-struct screen_output_t
-{
+struct screen_output_t {
     /** The XRandR names of the output */
-    char *name;
+    char                *name;
     /** The size in millimeters */
-    uint32_t mm_width, mm_height;
+    uint32_t             mm_width, mm_height;
     /** The XID */
     randr_output_array_t outputs;
 };
 
-static void
-screen_output_wipe(screen_output_t *output)
-{
+static void screen_output_wipe(screen_output_t *output) {
     p_delete(&output->name);
 
     randr_output_array_wipe(&output->outputs);
@@ -278,58 +275,48 @@ screen_output_wipe(screen_output_t *output)
 
 ARRAY_FUNCS(screen_output_t, screen_output, screen_output_wipe)
 
-static lua_class_t screen_class;
-LUA_OBJECT_FUNCS(screen_class, screen_t, screen)
-
 /** Check if a screen is valid */
-static bool
-screen_checker(screen_t *s)
-{
+static bool screen_checker(screen_t *s) {
     return s->valid;
 }
 
 /** Get a screen argument from the lua stack */
-screen_t *
-luaA_checkscreen(lua_State *L, int sidx)
-{
-    if (lua_isnumber(L, sidx))
-    {
+screen_t *luaA_checkscreen(lua_State *L, int sidx) {
+    if (lua_isnumber(L, sidx)) {
         int screen = lua_tointeger(L, sidx);
-        if(screen < 1 || screen > globalconf.screens.len)
-        {
-            luaA_warn(L, "invalid screen number: %d (of %d existing)", screen, globalconf.screens.len);
+        if (screen < 1 || screen > globalconf.screens.len) {
+            luaA_warn(
+                L, "invalid screen number: %d (of %d existing)", screen, globalconf.screens.len);
             lua_pushnil(L);
             return NULL;
         }
         return globalconf.screens.tab[screen - 1];
-    } else
-        return luaA_checkudata(L, sidx, &screen_class);
+    } else return luaC_checkuclass(L, sidx, "Screen");
 }
 
-static void
-screen_deduplicate(lua_State *L, screen_array_t *screens)
-{
+static void screen_deduplicate(lua_State *L, screen_array_t *screens) {
     /* Remove duplicate screens */
-    for(int first = 0; first < screens->len; first++) {
+    for (int first = 0; first < screens->len; first++) {
         screen_t *first_screen = screens->tab[first];
-        for(int second = 0; second < screens->len; second++) {
+        for (int second = 0; second < screens->len; second++) {
             screen_t *second_screen = screens->tab[second];
-            if (first == second)
-                continue;
+            if (first == second) continue;
 
-            if (first_screen->geometry.width < second_screen->geometry.width
-                    && first_screen->geometry.height < second_screen->geometry.height)
+            if (first_screen->geometry.width < second_screen->geometry.width &&
+                first_screen->geometry.height < second_screen->geometry.height)
                 /* Don't drop a smaller screen */
                 continue;
 
-            if (first_screen->geometry.x == second_screen->geometry.x
-                    && first_screen->geometry.y == second_screen->geometry.y) {
+            if (first_screen->geometry.x == second_screen->geometry.x &&
+                first_screen->geometry.y == second_screen->geometry.y) {
                 /* Found a duplicate */
-                first_screen->geometry.width = MAX(first_screen->geometry.width, second_screen->geometry.width);
-                first_screen->geometry.height = MAX(first_screen->geometry.height, second_screen->geometry.height);
+                first_screen->geometry.width =
+                    MAX(first_screen->geometry.width, second_screen->geometry.width);
+                first_screen->geometry.height =
+                    MAX(first_screen->geometry.height, second_screen->geometry.height);
 
                 screen_array_take(screens, second);
-                luaA_object_unref(L, second_screen);
+                luna_object_unref(L, second_screen);
 
                 /* Restart the search */
                 screen_deduplicate(L, screens);
@@ -366,34 +353,30 @@ screen_deduplicate(lua_State *L, screen_array_t *screens)
  *   "dead code" and improve code coverage by the tests.
  *
  */
-typedef struct viewport_t
-{
-    bool marked;
-    int x;
-    int y;
-    int width;
-    int height;
-    int id;
-    struct viewport_t *next;
-    screen_t *screen;
+typedef struct viewport_t {
+    bool                  marked;
+    int                   x;
+    int                   y;
+    int                   width;
+    int                   height;
+    int                   id;
+    struct viewport_t    *next;
+    screen_t             *screen;
     screen_output_array_t outputs;
 } viewport_t;
 
 static viewport_t *first_screen_viewport = NULL;
-static viewport_t *last_screen_viewport = NULL;
-static int screen_area_gid = 1;
+static viewport_t *last_screen_viewport  = NULL;
+static int         screen_area_gid       = 1;
 
-static void
-luaA_viewport_get_outputs(lua_State *L, viewport_t *a)
-{
+static void luaA_viewport_get_outputs(lua_State *L, viewport_t *a) {
     lua_createtable(L, 0, a ? a->outputs.len : 0);
 
-    if (!a)
-        return;
+    if (!a) return;
 
     int count = 1;
 
-    foreach(output, a->outputs) {
+    foreach (output, a->outputs) {
         lua_createtable(L, 3, 0);
 
         lua_pushstring(L, "mm_width");
@@ -417,16 +400,13 @@ luaA_viewport_get_outputs(lua_State *L, viewport_t *a)
     }
 }
 
-static int
-luaA_viewports(lua_State *L)
-{
+static int luaA_viewports(lua_State *L) {
     /* All viewports */
     lua_newtable(L);
 
     viewport_t *a = first_screen_viewport;
 
-    if (!a)
-        return 1;
+    if (!a) return 1;
 
     int count = 1;
 
@@ -473,42 +453,34 @@ luaA_viewports(lua_State *L)
 /* Give Lua a chance to handle or blacklist a viewport before creating the
  * screen object.
  */
-static void
-viewports_notify(lua_State *L)
-{
-    if (!first_screen_viewport)
-        return;
+static void viewports_notify(lua_State *L) {
+    if (!first_screen_viewport) return;
 
     luaA_viewports(L);
 
-    luaA_class_emit_signal(L, &screen_class, "property::_viewports", 1);
+    luna_class_emit_signal(L, "Screen", ":property._viewports", 1);
 }
 
-static viewport_t *
-viewport_add(lua_State *L, int x, int y, int w, int h)
-{
+static viewport_t *viewport_add(lua_State *L, int x, int y, int w, int h) {
     /* Search existing to avoid having to deduplicate later */
     viewport_t *a = first_screen_viewport;
 
-
-    do
-    {
-        if (a && a->x == x && a->y == y && a->width == w && a->height == h)
-        {
+    do {
+        if (a && a->x == x && a->y == y && a->width == w && a->height == h) {
             a->marked = true;
             return a;
         }
     } while (a && (a = a->next));
 
     viewport_t *node = malloc(sizeof(viewport_t));
-    node->x      = x;
-    node->y      = y;
-    node->width  = w;
-    node->height = h;
-    node->id     = screen_area_gid++;
-    node->next   = NULL;
-    node->screen = NULL;
-    node->marked = true;
+    node->x          = x;
+    node->y          = y;
+    node->width      = w;
+    node->height     = h;
+    node->id         = screen_area_gid++;
+    node->next       = NULL;
+    node->screen     = NULL;
+    node->marked     = true;
 
     screen_output_array_init(&node->outputs);
 
@@ -525,34 +497,26 @@ viewport_add(lua_State *L, int x, int y, int w, int h)
     return node;
 }
 
-static void
-monitor_unmark(void)
-{
+static void monitor_unmark(void) {
     viewport_t *a = first_screen_viewport;
 
-    if (!a)
-        return;
+    if (!a) return;
 
-    do
-    {
+    do {
         a->marked = false;
-    } while((a = a->next));
+    } while ((a = a->next));
 }
 
-
-static void
-viewport_purge(void)
-{
+static void viewport_purge(void) {
     viewport_t *cur = first_screen_viewport;
 
     /* Move the head of the list */
     while (first_screen_viewport && !first_screen_viewport->marked) {
-        cur = first_screen_viewport;
+        cur                   = first_screen_viewport;
         first_screen_viewport = cur->next;
 
-        foreach(existing_screen, globalconf.screens)
-            if ((*existing_screen)->viewport == cur)
-                (*existing_screen)->viewport = NULL;
+        foreach (existing_screen, globalconf.screens)
+            if ((*existing_screen)->viewport == cur) (*existing_screen)->viewport = NULL;
 
         screen_output_array_wipe(&cur->outputs);
 
@@ -570,66 +534,61 @@ viewport_purge(void)
     do {
         if (cur->next && !cur->next->marked) {
             viewport_t *tmp = cur->next;
-            cur->next = cur->next->next;
+            cur->next       = cur->next->next;
 
-            if (tmp == last_screen_viewport)
-                last_screen_viewport = cur;
+            if (tmp == last_screen_viewport) last_screen_viewport = cur;
 
-            foreach(existing_screen, globalconf.screens)
-                if ((*existing_screen)->viewport == tmp)
-                    (*existing_screen)->viewport = NULL;
+            foreach (existing_screen, globalconf.screens)
+                if ((*existing_screen)->viewport == tmp) (*existing_screen)->viewport = NULL;
 
             screen_output_array_wipe(&tmp->outputs);
 
             free(tmp);
-        } else
-            cur = cur->next;
+        } else cur = cur->next;
 
-    } while(cur);
+    } while (cur);
 }
 
-static screen_t *
-screen_add(lua_State *L, screen_array_t *screens)
-{
-    screen_t *new_screen = screen_new(L);
-    luaA_object_ref(L, -1);
+static screen_t *screen_add(lua_State *L, screen_array_t *screens) {
+    screen_t *new_screen = lua_newuserdatauv(L, sizeof(screen_t), 1);
+    p_clear(new_screen, 1);
+    luna_object_ref(L, -1);
     screen_array_append(screens, new_screen);
-    new_screen->xid = XCB_NONE;
+    new_screen->xid       = XCB_NONE;
     new_screen->lifecycle = SCREEN_LIFECYCLE_USER;
     return new_screen;
 }
 
-static void
-screen_wipe(screen_t *c)
-{
-    if (c->name) {
-        free(c->name);
-        c->name = NULL;
+static void lunaL_screen_gc(lua_State *L, void *p) {
+    screen_t *s = (screen_t *)p;
+    if (s->name) {
+        free(s->name);
+        s->name = NULL;
     }
 }
 
 /* Monitors were introduced in RandR 1.5 */
 #ifdef XCB_RANDR_GET_MONITORS
 
-static screen_output_t
-screen_get_randr_output(lua_State *L, xcb_randr_monitor_info_iterator_t *it)
-{
-    screen_output_t output;
-    xcb_randr_output_t *randr_outputs;
+static screen_output_t screen_get_randr_output(
+    lua_State                         *L,
+    xcb_randr_monitor_info_iterator_t *it) {
+    screen_output_t            output;
+    xcb_randr_output_t        *randr_outputs;
     xcb_get_atom_name_cookie_t name_c;
     xcb_get_atom_name_reply_t *name_r;
 
     output.mm_width  = it->data->width_in_millimeters;
     output.mm_height = it->data->height_in_millimeters;
 
-    name_c = xcb_get_atom_name_unchecked(globalconf.connection, it->data->name);
-    name_r = xcb_get_atom_name_reply(globalconf.connection, name_c, NULL);
+    name_c           = xcb_get_atom_name_unchecked(globalconf.connection, it->data->name);
+    name_r           = xcb_get_atom_name_reply(globalconf.connection, name_c, NULL);
 
     if (name_r) {
         const char *name = xcb_get_atom_name_name(name_r);
-        size_t len = xcb_get_atom_name_name_length(name_r);
+        size_t      len  = xcb_get_atom_name_name_length(name_r);
 
-        output.name = memcpy(p_new(char *, len + 1), name, len);
+        output.name      = memcpy(p_new(char *, len + 1), name, len);
         output.name[len] = '\0';
         p_delete(&name_r);
     } else {
@@ -640,18 +599,18 @@ screen_get_randr_output(lua_State *L, xcb_randr_monitor_info_iterator_t *it)
 
     randr_outputs = xcb_randr_monitor_info_outputs(it->data);
 
-    for(int i = 0; i < xcb_randr_monitor_info_outputs_length(it->data); i++) {
+    for (int i = 0; i < xcb_randr_monitor_info_outputs_length(it->data); i++) {
         randr_output_array_append(&output.outputs, randr_outputs[i]);
     }
 
     return output;
 }
 
-static void
-screen_scan_randr_monitors(lua_State *L, screen_array_t *screens)
-{
-    xcb_randr_get_monitors_cookie_t monitors_c = xcb_randr_get_monitors(globalconf.connection, globalconf.screen->root, 1);
-    xcb_randr_get_monitors_reply_t *monitors_r = xcb_randr_get_monitors_reply(globalconf.connection, monitors_c, NULL);
+static void screen_scan_randr_monitors(lua_State *L, screen_array_t *screens) {
+    xcb_randr_get_monitors_cookie_t monitors_c =
+        xcb_randr_get_monitors(globalconf.connection, globalconf.screen->root, 1);
+    xcb_randr_get_monitors_reply_t *monitors_r =
+        xcb_randr_get_monitors_reply(globalconf.connection, monitors_c, NULL);
     xcb_randr_monitor_info_iterator_t monitor_iter;
 
     if (monitors_r == NULL) {
@@ -659,54 +618,48 @@ screen_scan_randr_monitors(lua_State *L, screen_array_t *screens)
         return;
     }
 
-    for(monitor_iter = xcb_randr_get_monitors_monitors_iterator(monitors_r);
-            monitor_iter.rem; xcb_randr_monitor_info_next(&monitor_iter))
-    {
+    for (monitor_iter = xcb_randr_get_monitors_monitors_iterator(monitors_r); monitor_iter.rem;
+         xcb_randr_monitor_info_next(&monitor_iter)) {
         screen_t *new_screen;
 
         screen_output_t output = screen_get_randr_output(L, &monitor_iter);
 
-        viewport_t *viewport = viewport_add(L,
-            monitor_iter.data->x,
-            monitor_iter.data->y,
-            monitor_iter.data->width,
-            monitor_iter.data->height
-        );
+        viewport_t *viewport   = viewport_add(
+            L, monitor_iter.data->x, monitor_iter.data->y, monitor_iter.data->width,
+            monitor_iter.data->height);
 
         screen_output_array_append(&viewport->outputs, output);
 
-        if (globalconf.ignore_screens)
-            continue;
+        if (globalconf.ignore_screens) continue;
 
         new_screen = screen_add(L, screens);
         new_screen->lifecycle |= SCREEN_LIFECYCLE_C;
-        viewport->screen = new_screen;
-        new_screen->viewport = viewport;
-        new_screen->geometry.x = monitor_iter.data->x;
-        new_screen->geometry.y = monitor_iter.data->y;
-        new_screen->geometry.width = monitor_iter.data->width;
+        viewport->screen            = new_screen;
+        new_screen->viewport        = viewport;
+        new_screen->geometry.x      = monitor_iter.data->x;
+        new_screen->geometry.y      = monitor_iter.data->y;
+        new_screen->geometry.width  = monitor_iter.data->width;
         new_screen->geometry.height = monitor_iter.data->height;
-        new_screen->xid = monitor_iter.data->name;
+        new_screen->xid             = monitor_iter.data->name;
     }
 
     p_delete(&monitors_r);
 }
 #else
-static void
-screen_scan_randr_monitors(lua_State *L, screen_array_t *screens)
-{
-}
+static void screen_scan_randr_monitors(lua_State *L, screen_array_t *screens) { }
 #endif
 
-static void
-screen_get_randr_crtcs_outputs(lua_State *L, xcb_randr_get_crtc_info_reply_t *crtc_info_r, screen_output_array_t *outputs)
-{
+static void screen_get_randr_crtcs_outputs(
+    lua_State                       *L,
+    xcb_randr_get_crtc_info_reply_t *crtc_info_r,
+    screen_output_array_t           *outputs) {
     xcb_randr_output_t *randr_outputs = xcb_randr_get_crtc_info_outputs(crtc_info_r);
 
-    for(int j = 0; j < xcb_randr_get_crtc_info_outputs_length(crtc_info_r); j++)
-    {
-        xcb_randr_get_output_info_cookie_t output_info_c = xcb_randr_get_output_info(globalconf.connection, randr_outputs[j], XCB_CURRENT_TIME);
-        xcb_randr_get_output_info_reply_t *output_info_r = xcb_randr_get_output_info_reply(globalconf.connection, output_info_c, NULL);
+    for (int j = 0; j < xcb_randr_get_crtc_info_outputs_length(crtc_info_r); j++) {
+        xcb_randr_get_output_info_cookie_t output_info_c =
+            xcb_randr_get_output_info(globalconf.connection, randr_outputs[j], XCB_CURRENT_TIME);
+        xcb_randr_get_output_info_reply_t *output_info_r =
+            xcb_randr_get_output_info_reply(globalconf.connection, output_info_c, NULL);
         screen_output_t output;
 
         if (!output_info_r) {
@@ -714,13 +667,14 @@ screen_get_randr_crtcs_outputs(lua_State *L, xcb_randr_get_crtc_info_reply_t *cr
             continue;
         }
 
-        int len = xcb_randr_get_output_info_name_length(output_info_r);
+        int   len = xcb_randr_get_output_info_name_length(output_info_r);
         /* name is not NULL terminated */
-        char *name = memcpy(p_new(char *, len + 1), xcb_randr_get_output_info_name(output_info_r), len);
-        name[len] = '\0';
+        char *name =
+            memcpy(p_new(char *, len + 1), xcb_randr_get_output_info_name(output_info_r), len);
+        name[len]        = '\0';
 
-        output.name = name;
-        output.mm_width = output_info_r->mm_width;
+        output.name      = name;
+        output.mm_width  = output_info_r->mm_width;
         output.mm_height = output_info_r->mm_height;
         randr_output_array_init(&output.outputs);
         randr_output_array_append(&output.outputs, randr_outputs[j]);
@@ -731,14 +685,14 @@ screen_get_randr_crtcs_outputs(lua_State *L, xcb_randr_get_crtc_info_reply_t *cr
     }
 }
 
-static void
-screen_scan_randr_crtcs(lua_State *L, screen_array_t *screens)
-{
+static void screen_scan_randr_crtcs(lua_State *L, screen_array_t *screens) {
     /* A quick XRandR recall:
      * You have CRTC that manages a part of a SCREEN.
      * Each CRTC can draw stuff on one or more OUTPUT. */
-    xcb_randr_get_screen_resources_cookie_t screen_res_c = xcb_randr_get_screen_resources(globalconf.connection, globalconf.screen->root);
-    xcb_randr_get_screen_resources_reply_t *screen_res_r = xcb_randr_get_screen_resources_reply(globalconf.connection, screen_res_c, NULL);
+    xcb_randr_get_screen_resources_cookie_t screen_res_c =
+        xcb_randr_get_screen_resources(globalconf.connection, globalconf.screen->root);
+    xcb_randr_get_screen_resources_reply_t *screen_res_r =
+        xcb_randr_get_screen_resources_reply(globalconf.connection, screen_res_c, NULL);
 
     if (screen_res_r == NULL) {
         warn("RANDR GetScreenResources failed; this should not be possible");
@@ -748,32 +702,27 @@ screen_scan_randr_crtcs(lua_State *L, screen_array_t *screens)
     /* We go through CRTC, and build a screen for each one. */
     xcb_randr_crtc_t *randr_crtcs = xcb_randr_get_screen_resources_crtcs(screen_res_r);
 
-    for(int i = 0; i < screen_res_r->num_crtcs; i++)
-    {
+    for (int i = 0; i < screen_res_r->num_crtcs; i++) {
         /* Get info on the output crtc */
-        xcb_randr_get_crtc_info_cookie_t crtc_info_c = xcb_randr_get_crtc_info(globalconf.connection, randr_crtcs[i], XCB_CURRENT_TIME);
-        xcb_randr_get_crtc_info_reply_t *crtc_info_r = xcb_randr_get_crtc_info_reply(globalconf.connection, crtc_info_c, NULL);
+        xcb_randr_get_crtc_info_cookie_t crtc_info_c =
+            xcb_randr_get_crtc_info(globalconf.connection, randr_crtcs[i], XCB_CURRENT_TIME);
+        xcb_randr_get_crtc_info_reply_t *crtc_info_r =
+            xcb_randr_get_crtc_info_reply(globalconf.connection, crtc_info_c, NULL);
 
-        if(!crtc_info_r) {
+        if (!crtc_info_r) {
             warn("RANDR GetCRTCInfo failed; this should not be possible");
             continue;
         }
 
         /* If CRTC has no OUTPUT, ignore it */
-        if(!xcb_randr_get_crtc_info_outputs_length(crtc_info_r))
-            continue;
+        if (!xcb_randr_get_crtc_info_outputs_length(crtc_info_r)) continue;
 
-        viewport_t *viewport = viewport_add(L,
-            crtc_info_r->x,
-            crtc_info_r->y,
-            crtc_info_r->width,
-            crtc_info_r->height
-        );
+        viewport_t *viewport = viewport_add(
+            L, crtc_info_r->x, crtc_info_r->y, crtc_info_r->width, crtc_info_r->height);
 
         screen_get_randr_crtcs_outputs(L, crtc_info_r, &viewport->outputs);
 
-        if (globalconf.ignore_screens)
-        {
+        if (globalconf.ignore_screens) {
             p_delete(&crtc_info_r);
             continue;
         }
@@ -781,16 +730,16 @@ screen_scan_randr_crtcs(lua_State *L, screen_array_t *screens)
         /* Prepare the new screen */
         screen_t *new_screen = screen_add(L, screens);
         new_screen->lifecycle |= SCREEN_LIFECYCLE_C;
-        viewport->screen = new_screen;
-        new_screen->viewport = viewport;
-        new_screen->geometry.x = crtc_info_r->x;
-        new_screen->geometry.y = crtc_info_r->y;
-        new_screen->geometry.width= crtc_info_r->width;
-        new_screen->geometry.height= crtc_info_r->height;
-        new_screen->xid = randr_crtcs[i];
+        viewport->screen            = new_screen;
+        new_screen->viewport        = viewport;
+        new_screen->geometry.x      = crtc_info_r->x;
+        new_screen->geometry.y      = crtc_info_r->y;
+        new_screen->geometry.width  = crtc_info_r->width;
+        new_screen->geometry.height = crtc_info_r->height;
+        new_screen->xid             = randr_crtcs[i];
 
         /* Detect the older NVIDIA blobs */
-        foreach(output, new_screen->viewport->outputs) {
+        foreach (output, new_screen->viewport->outputs) {
             if (A_STREQ(output->name, "default")) {
                 /* non RandR 1.2+ X driver don't return any usable multihead
                  * data. I'm looking at you, nvidia binary blob!
@@ -798,8 +747,8 @@ screen_scan_randr_crtcs(lua_State *L, screen_array_t *screens)
                 warn("Ignoring RandR, only a compatibility layer is present.");
 
                 /* Get rid of the screens that we already created */
-                foreach(screen, *screens)
-                    luaA_object_unref(L, *screen);
+                foreach (screen, *screens)
+                    luna_object_unref(L, *screen);
 
                 screen_array_wipe(screens);
                 screen_array_init(screens);
@@ -816,33 +765,26 @@ screen_scan_randr_crtcs(lua_State *L, screen_array_t *screens)
     p_delete(&screen_res_r);
 }
 
-static void
-screen_scan_randr(lua_State *L, screen_array_t *screens)
-{
+static void screen_scan_randr(lua_State *L, screen_array_t *screens) {
     const xcb_query_extension_reply_t *extension_reply;
-    xcb_randr_query_version_reply_t *version_reply;
-    uint32_t major_version;
-    uint32_t minor_version;
+    xcb_randr_query_version_reply_t   *version_reply;
+    uint32_t                           major_version;
+    uint32_t                           minor_version;
 
     /* Check for extension before checking for XRandR */
     extension_reply = xcb_get_extension_data(globalconf.connection, &xcb_randr_id);
-    if(!extension_reply || !extension_reply->present)
-        return;
+    if (!extension_reply || !extension_reply->present) return;
 
-    version_reply =
-        xcb_randr_query_version_reply(globalconf.connection,
-                                      xcb_randr_query_version(globalconf.connection, 1, 5), 0);
-    if(!version_reply)
-        return;
-
+    version_reply = xcb_randr_query_version_reply(
+        globalconf.connection, xcb_randr_query_version(globalconf.connection, 1, 5), 0);
+    if (!version_reply) return;
 
     major_version = version_reply->major_version;
     minor_version = version_reply->minor_version;
     p_delete(&version_reply);
 
     /* Do we agree on a supported version? */
-    if (major_version != 1 || minor_version < 2)
-        return;
+    if (major_version != 1 || minor_version < 2) return;
 
     globalconf.have_randr_13 = minor_version >= 3;
 #if XCB_RANDR_MAJOR_VERSION > 1 || XCB_RANDR_MINOR_VERSION >= 5
@@ -852,135 +794,105 @@ screen_scan_randr(lua_State *L, screen_array_t *screens)
 #endif
 
     /* We want to know when something changes */
-    xcb_randr_select_input(globalconf.connection,
-                           globalconf.screen->root,
-                           XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
+    xcb_randr_select_input(
+        globalconf.connection, globalconf.screen->root, XCB_RANDR_NOTIFY_MASK_OUTPUT_CHANGE);
 
-    if (globalconf.have_randr_15)
-        screen_scan_randr_monitors(L, screens);
-    else
-        screen_scan_randr_crtcs(L, screens);
+    if (globalconf.have_randr_15) screen_scan_randr_monitors(L, screens);
+    else screen_scan_randr_crtcs(L, screens);
 
-    if (screens->len == 0 && !globalconf.ignore_screens)
-    {
+    if (screens->len == 0 && !globalconf.ignore_screens) {
         /* Scanning failed, disable randr again */
-        xcb_randr_select_input(globalconf.connection,
-                               globalconf.screen->root,
-                               0);
+        xcb_randr_select_input(globalconf.connection, globalconf.screen->root, 0);
         globalconf.have_randr_13 = false;
         globalconf.have_randr_15 = false;
     }
 }
 
-static void
-screen_scan_xinerama(lua_State *L, screen_array_t *screens)
-{
-    bool xinerama_is_active;
-    const xcb_query_extension_reply_t *extension_reply;
-    xcb_xinerama_is_active_reply_t *xia;
+static void screen_scan_xinerama(lua_State *L, screen_array_t *screens) {
+    bool                                xinerama_is_active;
+    const xcb_query_extension_reply_t  *extension_reply;
+    xcb_xinerama_is_active_reply_t     *xia;
     xcb_xinerama_query_screens_reply_t *xsq;
-    xcb_xinerama_screen_info_t *xsi;
-    int xinerama_screen_number;
+    xcb_xinerama_screen_info_t         *xsi;
+    int                                 xinerama_screen_number;
 
     /* Check for extension before checking for Xinerama */
     extension_reply = xcb_get_extension_data(globalconf.connection, &xcb_xinerama_id);
-    if(!extension_reply || !extension_reply->present)
-        return;
+    if (!extension_reply || !extension_reply->present) return;
 
-    xia = xcb_xinerama_is_active_reply(globalconf.connection, xcb_xinerama_is_active(globalconf.connection), NULL);
+    xia = xcb_xinerama_is_active_reply(
+        globalconf.connection, xcb_xinerama_is_active(globalconf.connection), NULL);
     xinerama_is_active = xia && xia->state;
     p_delete(&xia);
-    if(!xinerama_is_active)
-        return;
+    if (!xinerama_is_active) return;
 
-    xsq = xcb_xinerama_query_screens_reply(globalconf.connection,
-                                           xcb_xinerama_query_screens_unchecked(globalconf.connection),
-                                           NULL);
+    xsq = xcb_xinerama_query_screens_reply(
+        globalconf.connection, xcb_xinerama_query_screens_unchecked(globalconf.connection), NULL);
 
-    if(!xsq) {
+    if (!xsq) {
         warn("Xinerama QueryScreens failed; this should not be possible");
         return;
     }
 
-    xsi = xcb_xinerama_query_screens_screen_info(xsq);
+    xsi                    = xcb_xinerama_query_screens_screen_info(xsq);
     xinerama_screen_number = xcb_xinerama_query_screens_screen_info_length(xsq);
 
-    for(int screen = 0; screen < xinerama_screen_number; screen++)
-    {
-        viewport_t *viewport = viewport_add(L,
-            xsi[screen].x_org,
-            xsi[screen].y_org,
-            xsi[screen].width,
-            xsi[screen].height
-        );
+    for (int screen = 0; screen < xinerama_screen_number; screen++) {
+        viewport_t *viewport = viewport_add(
+            L, xsi[screen].x_org, xsi[screen].y_org, xsi[screen].width, xsi[screen].height);
 
-        if (globalconf.ignore_screens)
-            continue;
+        if (globalconf.ignore_screens) continue;
 
-        screen_t *s = screen_add(L, screens);
+        screen_t *s      = screen_add(L, screens);
         viewport->screen = s;
-        s->viewport = viewport;
+        s->viewport      = viewport;
         s->lifecycle |= SCREEN_LIFECYCLE_C;
-        s->geometry.x = xsi[screen].x_org;
-        s->geometry.y = xsi[screen].y_org;
-        s->geometry.width = xsi[screen].width;
+        s->geometry.x      = xsi[screen].x_org;
+        s->geometry.y      = xsi[screen].y_org;
+        s->geometry.width  = xsi[screen].width;
         s->geometry.height = xsi[screen].height;
     }
 
     p_delete(&xsq);
 }
 
-static void screen_scan_x11(lua_State *L, screen_array_t *screens)
-{
+static void screen_scan_x11(lua_State *L, screen_array_t *screens) {
     xcb_screen_t *xcb_screen = globalconf.screen;
 
-    viewport_t *viewport = viewport_add(L,
-        0,
-        0,
-        xcb_screen->width_in_pixels,
-        xcb_screen->height_in_pixels
-    );
+    viewport_t *viewport =
+        viewport_add(L, 0, 0, xcb_screen->width_in_pixels, xcb_screen->height_in_pixels);
 
-    if (globalconf.ignore_screens)
-        return;
+    if (globalconf.ignore_screens) return;
 
-    screen_t *s = screen_add(L, screens);
+    screen_t *s      = screen_add(L, screens);
     viewport->screen = s;
     s->lifecycle |= SCREEN_LIFECYCLE_C;
-    s->viewport = viewport;
-    s->geometry.x = 0;
-    s->geometry.y = 0;
-    s->geometry.width = xcb_screen->width_in_pixels;
+    s->viewport        = viewport;
+    s->geometry.x      = 0;
+    s->geometry.y      = 0;
+    s->geometry.width  = xcb_screen->width_in_pixels;
     s->geometry.height = xcb_screen->height_in_pixels;
 }
 
-static void
-screen_added(lua_State *L, screen_t *screen)
-{
+static void screen_added(lua_State *L, screen_t *screen) {
     screen->workarea = screen->geometry;
-    screen->valid = true;
-    luaA_object_push(L, screen);
-    luaA_object_emit_signal(L, -1, "_added", 0);
+    screen->valid    = true;
+    luna_object_push(L, screen);
+    luna_object_emit_signal(L, -1, "_added", 0);
     lua_pop(L, 1);
 }
 
-void
-screen_emit_scanned(void)
-{
+void screen_emit_scanned(void) {
     lua_State *L = globalconf_get_lua_State();
-    luaA_class_emit_signal(L, &screen_class, "scanned", 0);
+    luna_class_emit_signal(L, "Screen", "scanned", 0);
 }
 
-void
-screen_emit_scanning(void)
-{
+void screen_emit_scanning(void) {
     lua_State *L = globalconf_get_lua_State();
-    luaA_class_emit_signal(L, &screen_class, "scanning", 0);
+    luna_class_emit_signal(L, "Screen", "scanning", 0);
 }
 
-static void
-screen_scan_common(bool quiet)
-{
+static void screen_scan_common(bool quiet) {
     lua_State *L;
 
     L = globalconf_get_lua_State();
@@ -988,135 +900,115 @@ screen_scan_common(bool quiet)
     monitor_unmark();
 
     screen_scan_randr(L, &globalconf.screens);
-    if (globalconf.screens.len == 0)
-        screen_scan_xinerama(L, &globalconf.screens);
-    if (globalconf.screens.len == 0)
-        screen_scan_x11(L, &globalconf.screens);
+    if (globalconf.screens.len == 0) screen_scan_xinerama(L, &globalconf.screens);
+    if (globalconf.screens.len == 0) screen_scan_x11(L, &globalconf.screens);
 
     check(globalconf.screens.len > 0 || globalconf.ignore_screens);
 
     screen_deduplicate(L, &globalconf.screens);
 
-    foreach(screen, globalconf.screens) {
+    foreach (screen, globalconf.screens) {
         screen_added(L, *screen);
     }
 
     viewport_purge();
 
-    if (!quiet)
-        viewports_notify(L);
+    if (!quiet) viewports_notify(L);
 
     screen_update_primary();
 }
 
 /** Get screens informations and fill global configuration.
  */
-void
-screen_scan(void)
-{
+void screen_scan(void) {
     screen_emit_scanning();
     screen_scan_common(false);
 }
 
-static int
-luaA_scan_quiet(lua_State *L)
-{
+static int luaA_scan_quiet(lua_State *L) {
     screen_scan_common(true);
     return 0;
 }
 
 /* Called when a screen is removed, removes references to the old screen */
-static void
-screen_removed(lua_State *L, int sidx)
-{
-    screen_t *screen = luaA_checkudata(L, sidx, &screen_class);
+static void screen_removed(lua_State *L, int sidx) {
+    screen_t *screen = luaC_checkuclass(L, sidx, "Screen");
 
-    luaA_object_emit_signal(L, sidx, "removed", 0);
+    luna_object_emit_signal(L, sidx, "removed", 0);
 
-    if (globalconf.primary_screen == screen)
-        globalconf.primary_screen = NULL;
+    if (globalconf.primary_screen == screen) globalconf.primary_screen = NULL;
 
-    foreach(c, globalconf.clients) {
-        if((*c)->screen == screen)
-            screen_client_moveto(*c, screen_getbycoord(
-                        (*c)->geometry.x, (*c)->geometry.y), false);
+    foreach (c, globalconf.clients) {
+        if ((*c)->screen == screen)
+            screen_client_moveto(*c, screen_getbycoord((*c)->geometry.x, (*c)->geometry.y), false);
     }
 }
 
-void screen_cleanup(void)
-{
-    while(globalconf.screens.len)
+void screen_cleanup(void) {
+    while (globalconf.screens.len)
         screen_array_take(&globalconf.screens, 0);
 
     monitor_unmark();
     viewport_purge();
 }
 
-static void
-screen_modified(screen_t *existing_screen, screen_t *other_screen)
-{
+static void screen_modified(screen_t *existing_screen, screen_t *other_screen) {
     lua_State *L = globalconf_get_lua_State();
 
-    if(!AREA_EQUAL(existing_screen->geometry, other_screen->geometry)) {
-        area_t old_geometry = existing_screen->geometry;
+    if (!AREA_EQUAL(existing_screen->geometry, other_screen->geometry)) {
+        area_t old_geometry       = existing_screen->geometry;
         existing_screen->geometry = other_screen->geometry;
-        luaA_object_push(L, existing_screen);
+        luna_object_push(L, existing_screen);
         luaA_pusharea(L, old_geometry);
-        luaA_object_emit_signal(L, -2, "property::geometry", 1);
+        luna_object_emit_signal(L, -2, ":property.geometry", 1);
         lua_pop(L, 1);
         screen_update_workarea(existing_screen);
     }
 
-    const int other_len = other_screen->viewport ?
-        other_screen->viewport->outputs.len : 0;
+    const int other_len    = other_screen->viewport ? other_screen->viewport->outputs.len : 0;
 
-    const int existing_len = existing_screen->viewport ?
-        existing_screen->viewport->outputs.len : 0;
+    const int existing_len = existing_screen->viewport ? existing_screen->viewport->outputs.len : 0;
 
-    bool outputs_changed = (!(existing_screen->viewport && other_screen->viewport))
-        || existing_len != other_len;
+    bool outputs_changed =
+        (!(existing_screen->viewport && other_screen->viewport)) || existing_len != other_len;
 
-    if(existing_screen->viewport && other_screen->viewport && !outputs_changed)
-        for(int i = 0; i < existing_screen->viewport->outputs.len; i++) {
+    if (existing_screen->viewport && other_screen->viewport && !outputs_changed)
+        for (int i = 0; i < existing_screen->viewport->outputs.len; i++) {
             screen_output_t *existing_output = &existing_screen->viewport->outputs.tab[i];
-            screen_output_t *other_output = &other_screen->viewport->outputs.tab[i];
+            screen_output_t *other_output    = &other_screen->viewport->outputs.tab[i];
             outputs_changed |= existing_output->mm_width != other_output->mm_width;
             outputs_changed |= existing_output->mm_height != other_output->mm_height;
             outputs_changed |= A_STRNEQ(existing_output->name, other_output->name);
         }
 
     /* Brute-force update the outputs by swapping */
-    if(existing_screen->viewport || other_screen->viewport) {
-        viewport_t *tmp = other_screen->viewport;
-        other_screen->viewport = existing_screen->viewport;
+    if (existing_screen->viewport || other_screen->viewport) {
+        viewport_t *tmp           = other_screen->viewport;
+        other_screen->viewport    = existing_screen->viewport;
 
         existing_screen->viewport = tmp;
 
-        if(outputs_changed) {
-            luaA_object_push(L, existing_screen);
-            luaA_object_emit_signal(L, -1, "property::_outputs", 0);
+        if (outputs_changed) {
+            luna_object_push(L, existing_screen);
+            luna_object_emit_signal(L, -1, ":property._outputs", 0);
             lua_pop(L, 1);
         }
     }
 }
 
-static gboolean
-screen_refresh(gpointer unused)
-{
+static gboolean screen_refresh(gpointer unused) {
     globalconf.screen_refresh_pending = false;
 
     monitor_unmark();
 
     screen_array_t new_screens;
     screen_array_t removed_screens;
-    lua_State *L = globalconf_get_lua_State();
-    bool list_changed = false;
+    lua_State     *L            = globalconf_get_lua_State();
+    bool           list_changed = false;
 
     screen_array_init(&new_screens);
-    if (globalconf.have_randr_15)
-        screen_scan_randr_monitors(L, &new_screens);
-    else
-        screen_scan_randr_crtcs(L, &new_screens);
+    if (globalconf.have_randr_15) screen_scan_randr_monitors(L, &new_screens);
+    else screen_scan_randr_crtcs(L, &new_screens);
 
     viewport_purge();
 
@@ -1125,21 +1017,20 @@ screen_refresh(gpointer unused)
     screen_deduplicate(L, &new_screens);
 
     /* Running without any screens at all is no fun. */
-    if (new_screens.len == 0)
-        screen_scan_x11(L, &new_screens);
+    if (new_screens.len == 0) screen_scan_x11(L, &new_screens);
 
     /* Add new screens */
-    foreach(new_screen, new_screens) {
+    foreach (new_screen, new_screens) {
         bool found = false;
-        foreach(old_screen, globalconf.screens)
+        foreach (old_screen, globalconf.screens)
             found |= (*new_screen)->xid == (*old_screen)->xid;
-        if(!found) {
+        if (!found) {
             screen_array_append(&globalconf.screens, *new_screen);
             screen_added(L, *new_screen);
             /* Get an extra reference since both new_screens and
              * globalconf.screens reference this screen now */
-            luaA_object_push(L, *new_screen);
-            luaA_object_ref(L, -1);
+            luna_object_push(L, *new_screen);
+            luna_object_ref(L, -1);
 
             list_changed = true;
         }
@@ -1147,14 +1038,14 @@ screen_refresh(gpointer unused)
 
     /* Remove screens which are gone */
     screen_array_init(&removed_screens);
-    for(int i = 0; i < globalconf.screens.len; i++) {
+    for (int i = 0; i < globalconf.screens.len; i++) {
         screen_t *old_screen = globalconf.screens.tab[i];
-        bool found = old_screen->xid == FAKE_SCREEN_XID;
+        bool      found      = old_screen->xid == FAKE_SCREEN_XID;
 
-        foreach(new_screen, new_screens)
+        foreach (new_screen, new_screens)
             found |= (*new_screen)->xid == old_screen->xid;
 
-        if(old_screen->lifecycle & SCREEN_LIFECYCLE_C && !found) {
+        if (old_screen->lifecycle & SCREEN_LIFECYCLE_C && !found) {
             screen_array_take(&globalconf.screens, i);
             i--;
 
@@ -1162,38 +1053,34 @@ screen_refresh(gpointer unused)
             list_changed = true;
         }
     }
-    foreach(old_screen, removed_screens) {
-        luaA_object_push(L, *old_screen);
+    foreach (old_screen, removed_screens) {
+        luna_object_push(L, *old_screen);
         screen_removed(L, -1);
         lua_pop(L, 1);
         (*old_screen)->valid = false;
-        luaA_object_unref(L, *old_screen);
+        luna_object_unref(L, *old_screen);
     }
     screen_array_wipe(&removed_screens);
 
     /* Update changed screens */
-    foreach(existing_screen, globalconf.screens)
-        foreach(new_screen, new_screens)
-            if((*existing_screen)->xid == (*new_screen)->xid)
+    foreach (existing_screen, globalconf.screens)
+        foreach (new_screen, new_screens)
+            if ((*existing_screen)->xid == (*new_screen)->xid)
                 screen_modified(*existing_screen, *new_screen);
 
-    foreach(screen, new_screens)
-        luaA_object_unref(L, *screen);
+    foreach (screen, new_screens)
+        luna_object_unref(L, *screen);
     screen_array_wipe(&new_screens);
 
     screen_update_primary();
 
-    if (list_changed)
-        luaA_class_emit_signal(L, &screen_class, "list", 0);
+    if (list_changed) luna_class_emit_signal(L, "Screen", "list", 0);
 
     return G_SOURCE_REMOVE;
 }
 
-void
-screen_schedule_refresh(void)
-{
-    if(globalconf.screen_refresh_pending || !globalconf.have_randr_13)
-        return;
+void screen_schedule_refresh(void) {
+    if (globalconf.screen_refresh_pending || !globalconf.have_randr_13) return;
 
     globalconf.screen_refresh_pending = true;
     g_idle_add_full(G_PRIORITY_LOW, screen_refresh, NULL, NULL);
@@ -1205,28 +1092,20 @@ screen_schedule_refresh(void)
  * \param y Y coordinate
  * \return Squared distance of the point to the screen.
  */
-static unsigned int
-screen_get_distance_squared(screen_t *s, int x, int y)
-{
-    int sx = s->geometry.x, sy = s->geometry.y;
-    int sheight = s->geometry.height, swidth = s->geometry.width;
+static unsigned int screen_get_distance_squared(screen_t *s, int x, int y) {
+    int          sx = s->geometry.x, sy = s->geometry.y;
+    int          sheight = s->geometry.height, swidth = s->geometry.width;
     unsigned int dist_x, dist_y;
 
     /* Calculate distance in X coordinate */
-    if (x < sx)
-        dist_x = sx - x;
-    else if (x < sx + swidth)
-        dist_x = 0;
-    else
-        dist_x = x - sx - swidth;
+    if (x < sx) dist_x = sx - x;
+    else if (x < sx + swidth) dist_x = 0;
+    else dist_x = x - sx - swidth;
 
     /* Calculate distance in Y coordinate */
-    if (y < sy)
-        dist_y = sy - y;
-    else if (y < sy + sheight)
-        dist_y = 0;
-    else
-        dist_y = y - sy - sheight;
+    if (y < sy) dist_y = sy - y;
+    else if (y < sy + sheight) dist_y = 0;
+    else dist_y = y - sy - sheight;
 
     return dist_x * dist_x + dist_y * dist_y;
 }
@@ -1236,22 +1115,17 @@ screen_get_distance_squared(screen_t *s, int x, int y)
  * \param y Y coordinate
  * \return Screen pointer or screen param if no match or no multi-head.
  */
-screen_t *
-screen_getbycoord(int x, int y)
-{
-    foreach(s, globalconf.screens)
-        if(screen_coord_in_screen(*s, x, y))
-            return *s;
+screen_t *screen_getbycoord(int x, int y) {
+    foreach (s, globalconf.screens)
+        if (screen_coord_in_screen(*s, x, y)) return *s;
 
     /* No screen found, find nearest screen. */
-    screen_t *nearest_screen = NULL;
-    unsigned int nearest_dist = UINT_MAX;
-    foreach(s, globalconf.screens)
-    {
+    screen_t    *nearest_screen = NULL;
+    unsigned int nearest_dist   = UINT_MAX;
+    foreach (s, globalconf.screens) {
         unsigned int dist_sq = screen_get_distance_squared(*s, x, y);
-        if(dist_sq < nearest_dist)
-        {
-            nearest_dist = dist_sq;
+        if (dist_sq < nearest_dist) {
+            nearest_dist   = dist_sq;
             nearest_screen = *s;
         }
     }
@@ -1264,11 +1138,9 @@ screen_getbycoord(int x, int y)
  * \param y Y coordinate
  * \return True if the X/Y coordinates are in the given screen.
  */
-bool
-screen_coord_in_screen(screen_t *s, int x, int y)
-{
-    return (x >= s->geometry.x && x < s->geometry.x + s->geometry.width)
-           && (y >= s->geometry.y && y < s->geometry.y + s->geometry.height);
+bool screen_coord_in_screen(screen_t *s, int x, int y) {
+    return (x >= s->geometry.x && x < s->geometry.x + s->geometry.width) &&
+           (y >= s->geometry.y && y < s->geometry.y + s->geometry.height);
 }
 
 /** Is there any overlap between the given geometry and a given screen?
@@ -1276,63 +1148,42 @@ screen_coord_in_screen(screen_t *s, int x, int y)
  * \param geom The geometry
  * \return True if there is any overlap between the geometry and a given screen.
  */
-bool
-screen_area_in_screen(screen_t *s, area_t geom)
-{
-    return (geom.x < s->geometry.x + s->geometry.width)
-            && (geom.x + geom.width > s->geometry.x )
-            && (geom.y < s->geometry.y + s->geometry.height)
-            && (geom.y + geom.height > s->geometry.y);
+bool screen_area_in_screen(screen_t *s, area_t geom) {
+    return (geom.x < s->geometry.x + s->geometry.width) && (geom.x + geom.width > s->geometry.x) &&
+           (geom.y < s->geometry.y + s->geometry.height) && (geom.y + geom.height > s->geometry.y);
 }
 
-void screen_update_workarea(screen_t *screen)
-{
-    area_t area = screen->geometry;
+void screen_update_workarea(screen_t *screen) {
+    area_t   area = screen->geometry;
     uint16_t top = 0, bottom = 0, left = 0, right = 0;
 
-#define COMPUTE_STRUT(o) \
-    { \
-        if((o)->strut.top_start_x || (o)->strut.top_end_x || (o)->strut.top) \
-        { \
-            if((o)->strut.top) \
-                top = MAX(top, (o)->strut.top); \
-            else \
-                top = MAX(top, ((o)->geometry.y - area.y) + (o)->geometry.height); \
-        } \
-        if((o)->strut.bottom_start_x || (o)->strut.bottom_end_x || (o)->strut.bottom) \
-        { \
-            if((o)->strut.bottom) \
-                bottom = MAX(bottom, (o)->strut.bottom); \
-            else \
-                bottom = MAX(bottom, (area.y + area.height) - (o)->geometry.y); \
-        } \
-        if((o)->strut.left_start_y || (o)->strut.left_end_y || (o)->strut.left) \
-        { \
-            if((o)->strut.left) \
-                left = MAX(left, (o)->strut.left); \
-            else \
-                left = MAX(left, ((o)->geometry.x - area.x) + (o)->geometry.width); \
-        } \
-        if((o)->strut.right_start_y || (o)->strut.right_end_y || (o)->strut.right) \
-        { \
-            if((o)->strut.right) \
-                right = MAX(right, (o)->strut.right); \
-            else \
-                right = MAX(right, (area.x + area.width) - (o)->geometry.x); \
-        } \
+#define COMPUTE_STRUT(o)                                                                 \
+    {                                                                                    \
+        if ((o)->strut.top_start_x || (o)->strut.top_end_x || (o)->strut.top) {          \
+            if ((o)->strut.top) top = MAX(top, (o)->strut.top);                          \
+            else top = MAX(top, ((o)->geometry.y - area.y) + (o)->geometry.height);      \
+        }                                                                                \
+        if ((o)->strut.bottom_start_x || (o)->strut.bottom_end_x || (o)->strut.bottom) { \
+            if ((o)->strut.bottom) bottom = MAX(bottom, (o)->strut.bottom);              \
+            else bottom = MAX(bottom, (area.y + area.height) - (o)->geometry.y);         \
+        }                                                                                \
+        if ((o)->strut.left_start_y || (o)->strut.left_end_y || (o)->strut.left) {       \
+            if ((o)->strut.left) left = MAX(left, (o)->strut.left);                      \
+            else left = MAX(left, ((o)->geometry.x - area.x) + (o)->geometry.width);     \
+        }                                                                                \
+        if ((o)->strut.right_start_y || (o)->strut.right_end_y || (o)->strut.right) {    \
+            if ((o)->strut.right) right = MAX(right, (o)->strut.right);                  \
+            else right = MAX(right, (area.x + area.width) - (o)->geometry.x);            \
+        }                                                                                \
     }
 
-    foreach(c, globalconf.clients)
-        if((*c)->screen == screen && client_isvisible(*c))
-            COMPUTE_STRUT(*c)
+    foreach (c, globalconf.clients)
+        if ((*c)->screen == screen && client_isvisible(*c)) COMPUTE_STRUT(*c)
 
-    foreach(drawin, globalconf.drawins)
-        if((*drawin)->visible)
-        {
-            screen_t *d_screen =
-                screen_getbycoord((*drawin)->geometry.x, (*drawin)->geometry.y);
-            if (d_screen == screen)
-                COMPUTE_STRUT(*drawin)
+    foreach (drawin, globalconf.drawins)
+        if ((*drawin)->visible) {
+            screen_t *d_screen = screen_getbycoord((*drawin)->geometry.x, (*drawin)->geometry.y);
+            if (d_screen == screen) COMPUTE_STRUT(*drawin)
         }
 
 #undef COMPUTE_STRUT
@@ -1342,15 +1193,14 @@ void screen_update_workarea(screen_t *screen)
     area.width -= MIN(area.width, left + right);
     area.height -= MIN(area.height, top + bottom);
 
-    if (AREA_EQUAL(area, screen->workarea))
-        return;
+    if (AREA_EQUAL(area, screen->workarea)) return;
 
     area_t old_workarea = screen->workarea;
-    screen->workarea = area;
-    lua_State *L = globalconf_get_lua_State();
-    luaA_object_push(L, screen);
-    luaA_pusharea(L, old_workarea);
-    luaA_object_emit_signal(L, -2, "property::workarea", 1);
+    screen->workarea    = area;
+    lua_State *L        = globalconf_get_lua_State();
+    luna_object_push(L, screen);
+    luna_pusharea(L, old_workarea);
+    luna_object_emit_signal(L, -2, ":property.workarea", 1);
     lua_pop(L, 1);
 }
 
@@ -1360,57 +1210,46 @@ void screen_update_workarea(screen_t *screen)
  * \param doresize Set to true if we also move the client to the new x and
  *        y of the new screen.
  */
-void
-screen_client_moveto(client_t *c, screen_t *new_screen, bool doresize)
-{
-    lua_State *L = globalconf_get_lua_State();
-    screen_t *old_screen = c->screen;
-    area_t from, to;
-    bool had_focus = false;
+void screen_client_moveto(client_t *c, screen_t *new_screen, bool doresize) {
+    lua_State *L          = globalconf_get_lua_State();
+    screen_t  *old_screen = c->screen;
+    area_t     from, to;
+    bool       had_focus = false;
 
-    if(new_screen == c->screen)
-        return;
+    if (new_screen == c->screen) return;
 
-    if (globalconf.focus.client == c)
-        had_focus = true;
+    if (globalconf.focus.client == c) had_focus = true;
 
     c->screen = new_screen;
 
-    if(!doresize)
-    {
-        luaA_object_push(L, c);
-        if(old_screen != NULL)
-            luaA_object_push(L, old_screen);
-        else
-            lua_pushnil(L);
-        luaA_object_emit_signal(L, -2, "property::screen", 1);
+    if (!doresize) {
+        luna_object_push(L, c);
+        if (old_screen != NULL) luna_object_push(L, old_screen);
+        else lua_pushnil(L);
+        luna_object_emit_signal(L, -2, ":property.screen", 1);
         lua_pop(L, 1);
-        if(had_focus)
-            client_focus(c);
+        if (had_focus) client_focus(c);
         return;
     }
 
-    from = old_screen->geometry;
-    to = c->screen->geometry;
+    from                = old_screen->geometry;
+    to                  = c->screen->geometry;
 
     area_t new_geometry = c->geometry;
 
-    new_geometry.x = to.x + new_geometry.x - from.x;
-    new_geometry.y = to.y + new_geometry.y - from.y;
+    new_geometry.x      = to.x + new_geometry.x - from.x;
+    new_geometry.y      = to.y + new_geometry.y - from.y;
 
     /* resize the client if it doesn't fit the new screen */
-    if(new_geometry.width > to.width)
-        new_geometry.width = to.width;
-    if(new_geometry.height > to.height)
-        new_geometry.height = to.height;
+    if (new_geometry.width > to.width) new_geometry.width = to.width;
+    if (new_geometry.height > to.height) new_geometry.height = to.height;
 
     /* make sure the client is still on the screen */
-    if(new_geometry.x + new_geometry.width > to.x + to.width)
+    if (new_geometry.x + new_geometry.width > to.x + to.width)
         new_geometry.x = to.x + to.width - new_geometry.width;
-    if(new_geometry.y + new_geometry.height > to.y + to.height)
+    if (new_geometry.y + new_geometry.height > to.y + to.height)
         new_geometry.y = to.y + to.height - new_geometry.height;
-    if(!screen_area_in_screen(new_screen, new_geometry))
-    {
+    if (!screen_area_in_screen(new_screen, new_geometry)) {
         /* If all else fails, force the client to end up on screen. */
         new_geometry.x = to.x;
         new_geometry.y = to.y;
@@ -1420,86 +1259,67 @@ screen_client_moveto(client_t *c, screen_t *new_screen, bool doresize)
     client_resize(c, new_geometry, false);
 
     /* emit signal */
-    luaA_object_push(L, c);
-    if(old_screen != NULL)
-        luaA_object_push(L, old_screen);
-    else
-        lua_pushnil(L);
-    luaA_object_emit_signal(L, -2, "property::screen", 1);
+    luna_object_push(L, c);
+    if (old_screen != NULL) luna_object_push(L, old_screen);
+    else lua_pushnil(L);
+    luna_object_emit_signal(L, -2, ":property.screen", 1);
     lua_pop(L, 1);
 
-    if(had_focus)
-        client_focus(c);
+    if (had_focus) client_focus(c);
 }
 
 /** Get a screen's index. */
-int
-screen_get_index(screen_t *s)
-{
+int screen_get_index(screen_t *s) {
     int res = 0;
-    foreach(screen, globalconf.screens)
-    {
+    foreach (screen, globalconf.screens) {
         res++;
-        if (*screen == s)
-            return res;
+        if (*screen == s) return res;
     }
 
     return 0;
 }
 
-void
-screen_update_primary(void)
-{
-    if (!globalconf.have_randr_13)
-        return;
+void screen_update_primary(void) {
+    if (!globalconf.have_randr_13) return;
 
-    screen_t *primary_screen = NULL;
-    xcb_randr_get_output_primary_reply_t *primary =
-        xcb_randr_get_output_primary_reply(globalconf.connection,
-                xcb_randr_get_output_primary(globalconf.connection, globalconf.screen->root),
-                NULL);
+    screen_t                             *primary_screen = NULL;
+    xcb_randr_get_output_primary_reply_t *primary        = xcb_randr_get_output_primary_reply(
+        globalconf.connection,
+        xcb_randr_get_output_primary(globalconf.connection, globalconf.screen->root), NULL);
 
-    if (!primary)
-        return;
+    if (!primary) return;
 
-    foreach(screen, globalconf.screens)
-    {
+    foreach (screen, globalconf.screens) {
         if ((*screen)->viewport)
-            foreach(output, (*screen)->viewport->outputs)
+            foreach (output, (*screen)->viewport->outputs)
                 foreach (randr_output, output->outputs)
-                    if (*randr_output == primary->output)
-                        primary_screen = *screen;
+                    if (*randr_output == primary->output) primary_screen = *screen;
     }
     p_delete(&primary);
 
-    if (!primary_screen || primary_screen == globalconf.primary_screen)
-        return;
+    if (!primary_screen || primary_screen == globalconf.primary_screen) return;
 
-    lua_State *L = globalconf_get_lua_State();
-    screen_t *old = globalconf.primary_screen;
+    lua_State *L              = globalconf_get_lua_State();
+    screen_t  *old            = globalconf.primary_screen;
     globalconf.primary_screen = primary_screen;
 
-    if (old)
-    {
-        luaA_object_push(L, old);
-        luaA_object_emit_signal(L, -1, "primary_changed", 0);
+    if (old) {
+        luna_object_push(L, old);
+        luna_object_emit_signal(L, -1, "primary_changed", 0);
         lua_pop(L, 1);
     }
-    luaA_object_push(L, primary_screen);
-    luaA_object_emit_signal(L, -1, "primary_changed", 0);
+    luna_object_push(L, primary_screen);
+    luna_object_emit_signal(L, -1, "primary_changed", 0);
     lua_pop(L, 1);
 }
 
-screen_t *
-screen_get_primary(void)
-{
-    if (!globalconf.primary_screen && globalconf.screens.len > 0)
-    {
+screen_t *screen_get_primary(void) {
+    if (!globalconf.primary_screen && globalconf.screens.len > 0) {
         globalconf.primary_screen = globalconf.screens.tab[0];
 
-        lua_State *L = globalconf_get_lua_State();
-        luaA_object_push(L, globalconf.primary_screen);
-        luaA_object_emit_signal(L, -1, "primary_changed", 0);
+        lua_State *L              = globalconf_get_lua_State();
+        luna_object_push(L, globalconf.primary_screen);
+        luna_object_emit_signal(L, -1, "primary_changed", 0);
         lua_pop(L, 1);
     }
     return globalconf.primary_screen;
@@ -1511,57 +1331,57 @@ screen_get_primary(void)
  * \luastack
  * \lfield number The screen number, to get a screen.
  */
-static int
-luaA_screen_module_index(lua_State *L)
-{
+static int lunaL_screen_class_index(lua_State *L) {
     const char *name;
+    void       *screen = NULL;
 
-    if(lua_type(L, 2) == LUA_TSTRING && (name = lua_tostring(L, 2)))
-    {
-        if(A_STREQ(name, "primary"))
-            return luaA_object_push(L, screen_get_primary());
-        else if (A_STREQ(name, "automatic_factory"))
-        {
-            lua_pushboolean(L, !globalconf.ignore_screens);
-            return 1;
+    int keytype        = lua_type(L, 2);
+    if (keytype == LUA_TSTRING) {
+        if ((name = lua_tostring(L, 2))) {
+            if (A_STREQ(name, "primary")) screen = screen_get_primary();
+            else if (A_STREQ(name, "automatic_factory")) {
+                lua_pushboolean(L, !globalconf.ignore_screens);
+                return 1;
+            }
+
+            foreach (s, globalconf.screens) {
+                if ((*s)->name && A_STREQ(name, (*s)->name)) screen = *s;
+                else if ((*s)->viewport)
+                    foreach (output, (*s)->viewport->outputs) {
+                        if (A_STREQ(output->name, name)) screen = *s;
+                    }
+            }
         }
-
-        foreach(screen, globalconf.screens)
-            if ((*screen)->name && A_STREQ(name, (*screen)->name))
-                return luaA_object_push(L, *screen);
-            else if ((*screen)->viewport)
-                foreach(output, (*screen)->viewport->outputs)
-                    if(A_STREQ(output->name, name))
-                        return luaA_object_push(L, *screen);
-
-        luaA_warn(L, "Unknown screen output name: %s", name);
-        lua_pushnil(L);
-        return 1;
+    } else if (keytype == LUA_TNUMBER) {
+        screen = luaA_checkscreen(L, 2);
     }
 
-    return luaA_object_push(L, luaA_checkscreen(L, 2));
+    if (screen) return luna_object_push(L, screen);
+
+    lua_pushvalue(L, lua_upvalueindex(1));
+    lua_insert(L, 1);
+    lua_call(L, 2, 1);
+    return 1;
 }
 
-static int
-luaA_screen_module_newindex(lua_State *L)
-{
+static int lunaL_screen_class_newindex(lua_State *L) {
     const char *buf = luaL_checkstring(L, 2);
 
-    if (A_STREQ(buf, "automatic_factory"))
-    {
+    if (A_STREQ(buf, "automatic_factory")) {
         globalconf.ignore_screens = !luaA_checkboolean(L, 3);
 
         /* It *can* be useful if screens are added/removed later, but generally,
          * setting this should be done before screens are added
          */
         if (globalconf.ignore_screens && !globalconf.no_auto_screen)
-            luaA_warn(L,
+            luaA_warn(
+                L,
                 "Setting automatic_factory only makes sense when AwesomeWM is"
-                " started with `--screen off`"
-            );
+                " started with `--screen off`");
     }
 
-    return luaA_default_newindex(L);
+    luaC_uvrawset(L, 1, 1);
+    return 0;
 }
 
 /** Iterate over screens.
@@ -1572,77 +1392,65 @@ luaA_screen_module_newindex(lua_State *L)
  * @treturn function A lua iterator function.
  * @staticfct screen
  */
-static int
-luaA_screen_module_call(lua_State *L)
-{
+static int lunaL_screen_class_call(lua_State *L) {
     int idx;
 
-    if (lua_isnoneornil(L, 3))
-        idx = 0;
-    else
-        idx = screen_get_index(luaA_checkscreen(L, 3));
+    if (lua_isnoneornil(L, 3)) idx = 0;
+    else idx = screen_get_index(luaA_checkscreen(L, 3));
     if (idx >= 0 && idx < globalconf.screens.len)
         /* No +1 needed, index starts at 1, C array at 0 */
-        luaA_object_push(L, globalconf.screens.tab[idx]);
-    else
-        lua_pushnil(L);
+        luna_object_push(L, globalconf.screens.tab[idx]);
+    else lua_pushnil(L);
     return 1;
 }
 
-LUA_OBJECT_EXPORT_PROPERTY(screen, screen_t, geometry, luaA_pusharea)
+lunaL_getter(screen, geometry) {
+    screen_t *s = luaC_checkuclass(L, 1, "Screen");
+    luna_pusharea(L, s->geometry);
+    return 1;
+}
 
-static int
-luaA_screen_get_index(lua_State *L, screen_t *s)
-{
+lunaL_getter(screen, index) {
+    screen_t *s = luaC_checkuclass(L, 1, "Screen");
     lua_pushinteger(L, screen_get_index(s));
     return 1;
 }
 
-static int
-luaA_screen_get_outputs(lua_State *L, screen_t *s)
-{
+lunaL_getter(screen, _outputs) {
+    screen_t *s = luaC_checkuclass(L, 1, "Screen");
     luaA_viewport_get_outputs(L, s->viewport);
 
     /* The table of tables we created. */
     return 1;
 }
 
-static int
-luaA_screen_get_managed(lua_State *L, screen_t *s)
-{
-    if (s->lifecycle & SCREEN_LIFECYCLE_LUA)
-        lua_pushstring(L, "Lua");
-    else if (s->lifecycle & SCREEN_LIFECYCLE_C)
-        lua_pushstring(L, "C");
-    else
-        lua_pushstring(L, "none");
-
+lunaL_getter(screen, _managed) {
+    screen_t *s = luaC_checkuclass(L, 1, "Screen");
+    if (s->lifecycle & SCREEN_LIFECYCLE_LUA) lua_pushstring(L, "Lua");
+    else if (s->lifecycle & SCREEN_LIFECYCLE_C) lua_pushstring(L, "C");
+    else lua_pushstring(L, "none");
     return 1;
 }
 
-static int
-luaA_screen_get_workarea(lua_State *L, screen_t *s)
-{
-    luaA_pusharea(L, s->workarea);
+lunaL_getter(screen, workarea) {
+    screen_t *s = luaC_checkuclass(L, 1, "Screen");
+    luna_pusharea(L, s->workarea);
     return 1;
 }
 
-static int
-luaA_screen_set_name(lua_State *L, screen_t *s)
-{
-    const char *buf = luaL_checkstring(L, -1);
+lunaL_setter(screen, name) {
+    screen_t   *s   = luaC_checkuclass(L, 1, "Screen");
+    const char *buf = luaL_checkstring(L, 2);
 
-    if (s->name)
-        free(s->name);
+    if (s->name) free(s->name);
 
     s->name = a_strdup(buf);
 
     return 0;
 }
 
-static int
-luaA_screen_get_name(lua_State *L, screen_t *s)
-{
+lunaL_getter(screen, name) {
+    screen_t *s = luaC_checkuclass(L, 1, "Screen");
     lua_pushstring(L, s->name ? s->name : "screen");
 
     /* Fallback to "screen1", "screen2", etc if no name is set */
@@ -1659,9 +1467,7 @@ luaA_screen_get_name(lua_State *L, screen_t *s)
  * @treturn number The screen count.
  * @staticfct count
  */
-static int
-luaA_screen_count(lua_State *L)
-{
+static int lunaL_screen_count(lua_State *L) {
     lua_pushinteger(L, globalconf.screens.len);
     return 1;
 }
@@ -1685,19 +1491,17 @@ luaA_screen_count(lua_State *L)
  * @treturn screen The new screen.
  * @constructorfct fake_add
  */
-static int
-luaA_screen_fake_add(lua_State *L)
-{
-    int x = luaL_checkinteger(L, 1);
-    int y = luaL_checkinteger(L, 2);
-    int width = luaL_checkinteger(L, 3);
-    int height = luaL_checkinteger(L, 4);
+static int lunaL_screen_fake_add(lua_State *L) {
+    int x        = luaL_checkinteger(L, 1);
+    int y        = luaL_checkinteger(L, 2);
+    int width    = luaL_checkinteger(L, 3);
+    int height   = luaL_checkinteger(L, 4);
 
     /* If the screen is managed by internal Lua code */
     bool managed = false;
 
     /* Allow undocumented arguments for internal use only */
-    if(lua_istable(L, 5)) {
+    if (lua_istable(L, 5)) {
         lua_getfield(L, 5, "_managed");
         managed = lua_isboolean(L, 6) && luaA_checkboolean(L, 6);
 
@@ -1708,19 +1512,18 @@ luaA_screen_fake_add(lua_State *L)
 
     s = screen_add(L, &globalconf.screens);
     s->lifecycle |= managed ? SCREEN_LIFECYCLE_LUA : SCREEN_LIFECYCLE_USER;
-    s->geometry.x = x;
-    s->geometry.y = y;
-    s->geometry.width = width;
+    s->geometry.x      = x;
+    s->geometry.y      = y;
+    s->geometry.width  = width;
     s->geometry.height = height;
-    s->xid = FAKE_SCREEN_XID;
+    s->xid             = FAKE_SCREEN_XID;
 
     screen_added(L, s);
-    luaA_class_emit_signal(L, &screen_class, "list", 0);
-    luaA_object_push(L, s);
+    luna_class_emit_signal(L, "Screen", "list", 0);
+    luna_object_push(L, s);
 
-    foreach(c, globalconf.clients) {
-        screen_client_moveto(*c, screen_getbycoord(
-                    (*c)->geometry.x, (*c)->geometry.y), false);
+    foreach (c, globalconf.clients) {
+        screen_client_moveto(*c, screen_getbycoord((*c)->geometry.x, (*c)->geometry.y), false);
     }
 
     return 1;
@@ -1733,26 +1536,25 @@ luaA_screen_fake_add(lua_State *L)
  * @method fake_remove
  * @noreturn
  */
-static int
-luaA_screen_fake_remove(lua_State *L)
-{
-    screen_t *s = luaA_checkudata(L, 1, &screen_class);
-    int idx = screen_get_index(s) - 1;
-    if (idx < 0)
-        /* WTF? */
+static int lunaL_screen_fake_remove(lua_State *L) {
+    screen_t *s   = luaC_checkuclass(L, 1, "Screen");
+    int       idx = screen_get_index(s) - 1;
+    if (idx < 0) /* WTF? */
         return 0;
 
     if (globalconf.screens.len == 1) {
-        luaA_warn(L, "Removing last screen through fake_remove(). "
-                "This is a very, very, very bad idea!");
+        luaA_warn(
+            L,
+            "Removing last screen through fake_remove(). "
+            "This is a very, very, very bad idea!");
     }
 
     screen_array_take(&globalconf.screens, idx);
-    luaA_object_push(L, s);
+    luna_object_push(L, s);
     screen_removed(L, -1);
     lua_pop(L, 1);
-    luaA_class_emit_signal(L, &screen_class, "list", 0);
-    luaA_object_unref(L, s);
+    luna_class_emit_signal(L, "Screen", "list", 0);
+    luna_object_unref(L, s);
     s->valid = false;
 
     return 0;
@@ -1774,25 +1576,23 @@ luaA_screen_fake_remove(lua_State *L)
  * @see split
  * @see geometry
  */
-static int
-luaA_screen_fake_resize(lua_State *L)
-{
-    screen_t *screen = luaA_checkudata(L, 1, &screen_class);
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int width = luaL_checkinteger(L, 4);
-    int height = luaL_checkinteger(L, 5);
-    area_t old_geometry = screen->geometry;
+static int lunaL_screen_fake_resize(lua_State *L) {
+    screen_t *screen        = luaC_checkuclass(L, 1, "Screen");
+    int       x             = luaL_checkinteger(L, 2);
+    int       y             = luaL_checkinteger(L, 3);
+    int       width         = luaL_checkinteger(L, 4);
+    int       height        = luaL_checkinteger(L, 5);
+    area_t    old_geometry  = screen->geometry;
 
-    screen->geometry.x = x;
-    screen->geometry.y = y;
-    screen->geometry.width = width;
+    screen->geometry.x      = x;
+    screen->geometry.y      = y;
+    screen->geometry.width  = width;
     screen->geometry.height = height;
 
     screen_update_workarea(screen);
 
-    luaA_pusharea(L, old_geometry);
-    luaA_object_emit_signal(L, 1, "property::geometry", 1);
+    luna_pusharea(L, old_geometry);
+    luna_object_emit_signal(L, 1, ":property.geometry", 1);
 
     /* Note: calling `screen_client_moveto` from here will create more issues
      * than it would fix. Keep in mind that it means `c.screen` will be wrong
@@ -1810,102 +1610,89 @@ luaA_screen_fake_resize(lua_State *L)
  * @method swap
  * @noreturn
  */
-static int
-luaA_screen_swap(lua_State *L)
-{
-    screen_t *s = luaA_checkudata(L, 1, &screen_class);
-    screen_t *swap = luaA_checkudata(L, 2, &screen_class);
+static int lunaL_screen_swap(lua_State *L) {
+    screen_t *s    = luaC_checkuclass(L, 1, "Screen");
+    screen_t *swap = luaC_checkuclass(L, 2, "Screen");
 
-    if(s != swap)
-    {
+    if (s != swap) {
         screen_t **ref_s = NULL, **ref_swap = NULL;
-        foreach(item, globalconf.screens)
-        {
-            if(*item == s)
-                ref_s = item;
-            else if(*item == swap)
-                ref_swap = item;
-            if(ref_s && ref_swap)
-                break;
+        foreach (item, globalconf.screens) {
+            if (*item == s) ref_s = item;
+            else if (*item == swap) ref_swap = item;
+            if (ref_s && ref_swap) break;
         }
-        if(!ref_s || !ref_swap)
-            return luaL_error(L, "Invalid call to screen:swap()");
+        if (!ref_s || !ref_swap) return luaL_error(L, "Invalid call to Screen:swap()");
 
         /* swap ! */
-        *ref_s = swap;
+        *ref_s    = swap;
         *ref_swap = s;
 
-        luaA_class_emit_signal(L, &screen_class, "list", 0);
+        luna_class_emit_signal(L, "Screen", "list", 0);
 
-        luaA_object_push(L, swap);
+        luna_object_push(L, swap);
         lua_pushboolean(L, true);
-        luaA_object_emit_signal(L, -4, "swapped", 2);
+        luna_object_emit_signal(L, -4, "swapped", 2);
 
-        luaA_object_push(L, swap);
-        luaA_object_push(L, s);
+        luna_object_push(L, swap);
+        luna_object_push(L, s);
         lua_pushboolean(L, false);
-        luaA_object_emit_signal(L, -3, "swapped", 2);
+        luna_object_emit_signal(L, -3, "swapped", 2);
     }
 
     return 0;
 }
 
-void
-screen_class_setup(lua_State *L)
-{
-    static const struct luaL_Reg screen_methods[] =
-    {
-        LUA_CLASS_METHODS(screen)
-        { "count", luaA_screen_count },
-        { "_viewports", luaA_viewports },
-        { "_scan_quiet", luaA_scan_quiet },
-        { "__index", luaA_screen_module_index },
-        { "__newindex", luaA_screen_module_newindex },
-        { "__call", luaA_screen_module_call },
-        { "fake_add", luaA_screen_fake_add },
-        { NULL, NULL }
-    };
+static luaL_Reg screen_methods[] = {
+    {"fake_remove", lunaL_screen_fake_remove},
+    {"fake_resize", lunaL_screen_fake_resize},
+    {"swap",        lunaL_screen_swap       },
+    {NULL,          NULL                    }
+};
 
-    static const struct luaL_Reg screen_meta[] =
-    {
-        LUA_OBJECT_META(screen)
-        LUA_CLASS_META
-        { "fake_remove", luaA_screen_fake_remove },
-        { "fake_resize", luaA_screen_fake_resize },
-        { "swap", luaA_screen_swap },
-        { NULL, NULL },
-    };
+static luaC_Class screen_class = {
+    .name      = "Screen",
+    .parent    = "Object",
+    .user_ctor = 0,
+    .alloc     = NULL,
+    .gc        = lunaL_screen_gc,
+    .methods   = screen_methods};
 
-    luaA_class_setup(L, &screen_class, "screen", NULL,
-                     (lua_class_allocator_t) screen_new,
-                     (lua_class_collector_t) screen_wipe,
-                     (lua_class_checker_t) screen_checker,
-                     luaA_class_index_miss_property, luaA_class_newindex_miss_property,
-                     screen_methods, screen_meta);
-    luaA_class_add_property(&screen_class, "geometry",
-                            NULL,
-                            (lua_class_propfunc_t) luaA_screen_get_geometry,
-                            NULL);
-    luaA_class_add_property(&screen_class, "index",
-                            NULL,
-                            (lua_class_propfunc_t) luaA_screen_get_index,
-                            NULL);
-    luaA_class_add_property(&screen_class, "_outputs",
-                            NULL,
-                            (lua_class_propfunc_t) luaA_screen_get_outputs,
-                            NULL);
-    luaA_class_add_property(&screen_class, "_managed",
-                            NULL,
-                            (lua_class_propfunc_t) luaA_screen_get_managed,
-                            NULL);
-    luaA_class_add_property(&screen_class, "workarea",
-                            NULL,
-                            (lua_class_propfunc_t) luaA_screen_get_workarea,
-                            NULL);
-    luaA_class_add_property(&screen_class, "name",
-                            (lua_class_propfunc_t) luaA_screen_set_name,
-                            (lua_class_propfunc_t) luaA_screen_get_name,
-                            (lua_class_propfunc_t) luaA_screen_set_name);
+void luaC_register_screen(lua_State *L) {
+    lua_pushlightuserdata(L, &screen_class);
+    luaC_register(L, -1);
+    lunaL_readonly_prop(screen, geometry);
+    lunaL_readonly_prop(screen, index);
+    lunaL_readonly_prop(screen, _outputs);
+    lunaL_readonly_prop(screen, _managed);
+    lunaL_readonly_prop(screen, workarea);
+    lunaL_prop(screen, name);
+    lua_pushstring(L, "count");
+    lua_pushcfunction(L, lunaL_screen_count);
+    lua_rawset(L, -3);
+    lua_pushstring(L, "_viewports");
+    lua_pushcfunction(L, luaA_viewports);
+    lua_rawset(L, -3);
+    lua_pushstring(L, "_scan_quiet");
+    lua_pushcfunction(L, luaA_scan_quiet);
+    lua_rawset(L, -3);
+    lua_pushstring(L, "fake_add");
+    lua_pushcfunction(L, lunaL_screen_fake_add);
+    lua_rawset(L, -3);
+
+    lua_getmetatable(L, -1);                           // get mt
+    lua_pushstring(L, "__index");                      // key for rawset
+    lua_pushstring(L, "__index");                      // key for rawget
+    lua_rawget(L, -3);                                 // get index
+    lua_pushcclosure(L, lunaL_screen_class_index, 1);  // wrap it in closure
+    lua_rawset(L, -3);                                 // set index
+
+    lua_pushstring(L, "__newindex");
+    lua_pushcfunction(L, lunaL_screen_class_newindex);
+    lua_rawset(L, -3);
+    lua_pushstring(L, "__call");
+    lua_pushcfunction(L, lunaL_screen_class_call);
+    lua_rawset(L, -3);
+    lua_pop(L, 2);
 }
 
 /* @DOC_cobject_COMMON@ */

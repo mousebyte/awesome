@@ -22,54 +22,52 @@
 #ifndef AWESOME_SCREEN_H
 #define AWESOME_SCREEN_H
 
-#include "globalconf.h"
-#include "draw.h"
 #include "common/array.h"
-#include "common/luaclass.h"
+#include "draw.h"
+#include "globalconf.h"
 
 typedef struct screen_output_t screen_output_t;
 ARRAY_TYPE(screen_output_t, screen_output)
 
 /** Different ways to manage screens */
 typedef enum {
-    SCREEN_LIFECYCLE_USER =        0, /*!< Unmanaged (ei. from fake_add) */
+    SCREEN_LIFECYCLE_USER = 0,        /*!< Unmanaged (ei. from fake_add) */
     SCREEN_LIFECYCLE_LUA  = 0x1 << 0, /*!< Is managed internally by Lua  */
     SCREEN_LIFECYCLE_C    = 0x1 << 1, /*!< Is managed internally by C    */
 } screen_lifecycle_t;
 
-struct a_screen
-{
-    LUA_OBJECT_HEADER
-    bool valid;
+struct a_screen {
+    bool               valid;
     /** Who manages the screen lifecycle */
     screen_lifecycle_t lifecycle;
     /** Screen geometry */
-    area_t geometry;
+    area_t             geometry;
     /** Screen workarea */
-    area_t workarea;
+    area_t             workarea;
     /** The name of the screen */
-    char *name;
+    char              *name;
     /** Opaque pointer to the viewport */
     struct viewport_t *viewport;
     /** Some XID identifying this screen */
-    uint32_t xid;
+    uint32_t           xid;
 };
+
 ARRAY_FUNCS(screen_t *, screen, DO_NOTHING)
 
-void screen_class_setup(lua_State *L);
-void screen_scan(void);
+void      screen_scan(void);
 screen_t *screen_getbycoord(int, int);
-bool screen_coord_in_screen(screen_t *, int, int);
-bool screen_area_in_screen(screen_t *, area_t);
-int screen_get_index(screen_t *);
-void screen_client_moveto(client_t *, screen_t *, bool);
-void screen_update_primary(void);
-void screen_update_workarea(screen_t *);
+bool      screen_coord_in_screen(screen_t *, int, int);
+bool      screen_area_in_screen(screen_t *, area_t);
+int       screen_get_index(screen_t *);
+void      screen_client_moveto(client_t *, screen_t *, bool);
+void      screen_update_primary(void);
+void      screen_update_workarea(screen_t *);
 screen_t *screen_get_primary(void);
-void screen_schedule_refresh(void);
-void screen_emit_scanned(void);
-void screen_emit_scanning(void);
-void screen_cleanup(void);
+void      screen_schedule_refresh(void);
+void      screen_emit_scanned(void);
+void      screen_emit_scanning(void);
+void      screen_cleanup(void);
+void      screen_class_setup(lua_State *L);
 
 screen_t *luaA_checkscreen(lua_State *, int);
 
