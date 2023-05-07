@@ -78,7 +78,7 @@ static int luaA_window_buttons(lua_State *L) {
 
     if (lua_gettop(L) == 2) {
         luaA_button_array_set(L, 1, 2, &window->buttons);
-        luna_object_emit_signal(L, 1, "property::buttons", 0);
+        luna_object_emit_signal(L, 1, ":property.buttons", 0);
         xwindow_buttons_grab(window->window, &window->buttons);
     }
 
@@ -95,7 +95,7 @@ static int luaA_window_struts(lua_State *L) {
     if (lua_gettop(L) == 2) {
         luaA_tostrut(L, 2, &window->strut);
         ewmh_update_strut(window->window, &window->strut);
-        luna_object_emit_signal(L, 1, "property::struts", 0);
+        luna_object_emit_signal(L, 1, ":property.struts", 0);
         /* We don't know the correct screen, update them all */
         foreach (s, globalconf.screens)
             screen_update_workarea(*s);
@@ -115,7 +115,7 @@ void window_set_opacity(lua_State *L, int idx, double opacity) {
     if (window->opacity != opacity) {
         window->opacity = opacity;
         xwindow_set_opacity(window_get(window), opacity);
-        luna_object_emit_signal(L, idx, "property::opacity", 0);
+        luna_object_emit_signal(L, idx, ":property.opacity", 0);
     }
 }
 
@@ -216,7 +216,7 @@ int luaA_window_set_type(lua_State *L, window_t *w) {
         w->type = type;
         if (w->window != XCB_WINDOW_NONE)
             ewmh_update_window_type(w->window, window_translate_type(w->type));
-        luna_object_emit_signal(L, -3, "property::type", 0);
+        luna_object_emit_signal(L, -3, ":property.type", 0);
     }
 
     return 0;
@@ -389,7 +389,7 @@ lunaL_setter(window, _border_color) {
     if (color_name && color_init_reply(color_init_unchecked(
                           &window->border_color, color_name, len, globalconf.visual))) {
         window->border_need_update = true;
-        luna_object_emit_signal(L, -3, ":property:border_color", 0);
+        luna_object_emit_signal(L, -3, ":property.border_color", 0);
     }
 
     return 0;
