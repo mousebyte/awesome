@@ -1,7 +1,8 @@
 /*
- * button.h - button header
+ * button.h - button class
  *
  * Copyright © 2007-2009 Julien Danjou <julien@danjou.info>
+ * Copyright ©      2023 Abigail Teague <ateague063@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,30 +23,25 @@
 #ifndef AWESOME_OBJECTS_BUTTON_H
 #define AWESOME_OBJECTS_BUTTON_H
 
+#include "common/object.h"
 #include "globalconf.h"
-#include "common/luaclass.h"
-#include "common/luaobject.h"
 
 #include <stdint.h>
 #include <xcb/xcb.h>
 
 /** Mouse buttons bindings */
-typedef struct button_t
-{
-    LUA_OBJECT_HEADER
+struct button_t {
     /** Key modifiers */
-    uint16_t modifiers;
+    uint16_t     modifiers;
     /** Mouse button number */
     xcb_button_t button;
-} button_t;
+};
 
-extern lua_class_t button_class;
-LUA_OBJECT_FUNCS(button_class, button_t, button)
 ARRAY_FUNCS(button_t *, button, DO_NOTHING)
 
-int luaA_button_array_get(lua_State *, int, button_array_t *);
+int  luaA_button_array_get(lua_State *, int, button_array_t *);
 void luaA_button_array_set(lua_State *, int, int, button_array_t *);
-void button_class_setup(lua_State *);
+void luaC_register_button(lua_State *);
 
 #endif
 
