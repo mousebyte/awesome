@@ -1,7 +1,8 @@
 /*
- * tag.h - tag management header
+ * tag.h - tag class
  *
  * Copyright © 2007-2008 Julien Danjou <julien@danjou.info>
+ * Copyright ©      2023 Abigail Teague <ateague063@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 
 #include "client.h"
 
-int tags_get_current_or_first_selected_index(void);
+int  tags_get_current_or_first_selected_index(void);
 void tag_client(lua_State *, client_t *);
 void untag_client(client_t *, tag_t *);
 bool is_client_tagged(client_t *, tag_t *);
@@ -33,26 +34,18 @@ void tag_unref_simplified(tag_t **);
 ARRAY_FUNCS(tag_t *, tag, tag_unref_simplified)
 
 /** Tag type */
-struct tag
-{
-    LUA_OBJECT_HEADER
+struct tag {
     /** Tag name */
-    char *name;
+    char          *name;
     /** true if activated */
-    bool activated;
+    bool           activated;
     /** true if selected */
-    bool selected;
+    bool           selected;
     /** clients in this tag */
     client_array_t clients;
 };
 
-extern lua_class_t tag_class;
-LUA_OBJECT_FUNCS(tag_class, tag_t, tag)
-
-void tag_class_setup(lua_State *);
-
-bool tag_get_selected(tag_t *);
-char *tag_get_name(tag_t *);
+void luaC_register_tag(lua_State *);
 
 #endif
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
