@@ -76,9 +76,8 @@ static int luaA_selection_watcher_new(lua_State *L) {
     xcb_intern_atom_reply_t *reply;
     selection_watcher_t     *selection;
 
-    name = luaL_checklstring(L, 2, &name_length);
-    lua_pushvalue(L, 1);
-    selection             = lua_touserdata(L, -1);
+    name                  = luaL_checklstring(L, 2, &name_length);
+    selection             = lua_touserdata(L, 1);
     selection->active_ref = LUA_NOREF;
     selection->window     = XCB_NONE;
 

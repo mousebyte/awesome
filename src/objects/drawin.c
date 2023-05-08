@@ -407,7 +407,7 @@ static int lunaL_drawin_geometry(lua_State *L) {
     if (lua_gettop(L) == 2) {
         area_t wingeom;
 
-        lunaL_checktable(L, 2);
+        luaA_checktable(L, 2);
         wingeom.x      = round(luaA_getopt_number_range(
             L, 2, "x", drawin->geometry.x, MIN_X11_COORDINATE, MAX_X11_COORDINATE));
         wingeom.y      = round(luaA_getopt_number_range(
@@ -559,7 +559,6 @@ lunaL_getter(drawin, visible) {
  * \return The number of elements pushed on stack.
  */
 lunaL_setter(drawin, visible) {
-    drawin_t *drawin = luaC_checkuclass(L, 1, "Drawin");
     drawin_set_visible(L, 1, luaA_checkboolean(L, 2));
     return 0;
 }
@@ -571,7 +570,7 @@ lunaL_setter(drawin, visible) {
  */
 lunaL_getter(drawin, drawable) {
     drawin_t *drawin = luaC_checkuclass(L, 1, "Drawin");
-    luaA_object_push_item(L, 1, drawin->drawable);
+    luna_object_push_item(L, 1, drawin->drawable);
     return 1;
 }
 
@@ -631,7 +630,7 @@ lunaL_getter(drawin, shape_clip) {
 lunaL_setter(drawin, shape_clip) {
     drawin_t        *drawin = luaC_checkuclass(L, 1, "Drawin");
     cairo_surface_t *surf   = NULL;
-    if (!lua_isnil(L, 2)) surf = (cairo_surface_t *)lua_touserdata(L, -1);
+    if (!lua_isnil(L, 2)) surf = (cairo_surface_t *)lua_touserdata(L, 2);
 
     /* The drawin might have been resized to a larger size. Apply that. */
     drawin_apply_moveresize(drawin);
@@ -664,7 +663,7 @@ lunaL_setter(drawin, shape_input) {
     drawin_t *drawin      = luaC_checkuclass(L, 1, "Drawin");
 
     cairo_surface_t *surf = NULL;
-    if (!lua_isnil(L, -1)) surf = (cairo_surface_t *)lua_touserdata(L, 2);
+    if (!lua_isnil(L, 2)) surf = (cairo_surface_t *)lua_touserdata(L, 2);
 
     /* The drawin might have been resized to a larger size. Apply that. */
     drawin_apply_moveresize(drawin);
@@ -705,7 +704,6 @@ void luaC_register_drawin(lua_State *L) {
     lunaL_prop(drawin, y);
     lunaL_prop(drawin, width);
     lunaL_prop(drawin, height);
-    lunaL_prop(drawin, type);
     lunaL_prop(drawin, shape_bounding);
     lunaL_prop(drawin, shape_clip);
     lunaL_prop(drawin, shape_input);

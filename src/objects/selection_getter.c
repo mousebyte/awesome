@@ -57,11 +57,10 @@ static int luaA_selection_getter_new(lua_State *L) {
     lua_pushliteral(L, "target");
     lua_gettable(L, 2);
 
-    name   = luaL_checklstring(L, -2, &name_length);
-    target = luaL_checklstring(L, -1, &target_length);
+    name              = luaL_checklstring(L, -2, &name_length);
+    target            = luaL_checklstring(L, -1, &target_length);
 
-    lua_pushvalue(L, 1);
-    selection         = lua_touserdata(L, -1);
+    selection         = lua_touserdata(L, 1);
     selection->window = xcb_generate_id(globalconf.connection);
     xcb_create_window(
         globalconf.connection, globalconf.screen->root_depth, selection->window,
@@ -71,7 +70,7 @@ static int luaA_selection_getter_new(lua_State *L) {
     /* Save it in the registry */
     lua_pushliteral(L, REGISTRY_GETTER_TABLE_INDEX);
     lua_rawget(L, LUA_REGISTRYINDEX);
-    lua_pushvalue(L, -2);
+    lua_pushvalue(L, 1);
     selection->ref = luaL_ref(L, -2);
     lua_pop(L, 1);
 

@@ -1199,7 +1199,7 @@ void screen_update_workarea(screen_t *screen) {
     screen->workarea    = area;
     lua_State *L        = globalconf_get_lua_State();
     luna_object_push(L, screen);
-    luna_pusharea(L, old_workarea);
+    luaA_pusharea(L, old_workarea);
     luna_object_emit_signal(L, -2, ":property.workarea", 1);
     lua_pop(L, 1);
 }
@@ -1356,11 +1356,13 @@ static int lunaL_screen_class_index(lua_State *L) {
         screen = luaA_checkscreen(L, 2);
     }
 
-    if (screen) return luna_object_push(L, screen);
+    if (screen) luna_object_push(L, screen);
+    else {
+        lua_pushvalue(L, lua_upvalueindex(1));
+        lua_insert(L, 1);
+        lua_call(L, 2, 1);
+    }
 
-    lua_pushvalue(L, lua_upvalueindex(1));
-    lua_insert(L, 1);
-    lua_call(L, 2, 1);
     return 1;
 }
 
@@ -1406,7 +1408,7 @@ static int lunaL_screen_class_call(lua_State *L) {
 
 lunaL_getter(screen, geometry) {
     screen_t *s = luaC_checkuclass(L, 1, "Screen");
-    luna_pusharea(L, s->geometry);
+    luaA_pusharea(L, s->geometry);
     return 1;
 }
 
@@ -1434,7 +1436,7 @@ lunaL_getter(screen, _managed) {
 
 lunaL_getter(screen, workarea) {
     screen_t *s = luaC_checkuclass(L, 1, "Screen");
-    luna_pusharea(L, s->workarea);
+    luaA_pusharea(L, s->workarea);
     return 1;
 }
 
@@ -1591,7 +1593,7 @@ static int lunaL_screen_fake_resize(lua_State *L) {
 
     screen_update_workarea(screen);
 
-    luna_pusharea(L, old_geometry);
+    luaA_pusharea(L, old_geometry);
     luna_object_emit_signal(L, 1, ":property.geometry", 1);
 
     /* Note: calling `screen_client_moveto` from here will create more issues
@@ -1631,7 +1633,7 @@ static int lunaL_screen_swap(lua_State *L) {
 
         luna_object_push(L, swap);
         lua_pushboolean(L, true);
-        luna_object_emit_signal(L, -4, "swapped", 2);
+        luna_object_emit_signal(L, 1, "swapped", 2);
 
         luna_object_push(L, swap);
         luna_object_push(L, s);

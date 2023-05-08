@@ -67,7 +67,8 @@ void      screen_schedule_refresh(void);
 void      screen_emit_scanned(void);
 void      screen_emit_scanning(void);
 void      screen_cleanup(void);
-void      screen_class_setup(lua_State *L);
+
+void luaC_register_screen(lua_State *L);
 
 screen_t *luaA_checkscreen(lua_State *, int);
 

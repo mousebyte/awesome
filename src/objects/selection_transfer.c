@@ -54,7 +54,7 @@ typedef struct selection_transfer_t {
 } selection_transfer_t;
 
 static void lunaL_selection_transfer_alloc(lua_State *L) {
-    selection_transfer_t *s = lua_newuserdatauv(L, sizeof(selection_transfer_t), 2);
+    selection_transfer_t *s = lua_newuserdatauv(L, sizeof(selection_transfer_t), 1);
     p_clear(s, 1);
 }
 
@@ -109,7 +109,7 @@ static void transfer_continue_incremental(lua_State *L, int ud) {
     ud                             = luaA_absindex(L, ud);
 
     /* Get the data that is to be sent next */
-    lua_getiuservalue(L, ud, 2);
+    lua_getiuservalue(L, ud, 1);
     lua_pushliteral(L, TRANSFER_DATA_INDEX);
     lua_rawget(L, -2);
     lua_remove(L, -2);
@@ -216,7 +216,7 @@ static int luaA_selection_transfer_send(lua_State *L) {
         lua_pushliteral(L, "data");
         lua_rawget(L, 2);
 
-        lua_getiuservalue(L, 1, 2);
+        lua_getiuservalue(L, 1, 1);
         lua_pushliteral(L, TRANSFER_DATA_INDEX);
         lua_pushvalue(L, -3);
         lua_rawset(L, -3);
@@ -288,7 +288,7 @@ static int luaA_selection_transfer_send(lua_State *L) {
                 transfer->property, INCR, 32, 1, (const uint32_t[]) {incr_size});
 
             /* Save the data on the transfer object */
-            luaA_getuservalue(L, 1);
+            lua_getiuservalue(L, 1, 1);
             lua_pushliteral(L, TRANSFER_DATA_INDEX);
             lua_pushvalue(L, -3);
             lua_rawset(L, -3);

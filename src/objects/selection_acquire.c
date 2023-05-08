@@ -136,8 +136,7 @@ static int luaA_selection_acquire_new(lua_State *L) {
     name_atom = reply ? reply->atom : XCB_NONE;
     p_delete(&reply);
 
-    lua_pushvalue(L, 1);
-    selection            = lua_touserdata(L, -1);
+    selection            = lua_touserdata(L, 1);
     selection->selection = name_atom;
     selection->timestamp = globalconf.timestamp;
     selection->window    = xcb_generate_id(globalconf.connection);
@@ -175,7 +174,7 @@ static int luaA_selection_acquire_new(lua_State *L) {
     }
 
     luaA_pushatom(L, name_atom);
-    lua_pushvalue(L, -4);
+    lua_pushvalue(L, 1);
     lua_rawset(L, -4);
     lua_pop(L, 2);
 

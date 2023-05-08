@@ -305,7 +305,8 @@ void tag_unref_simplified(tag_t **tag) {
 }
 
 static void lunaL_tag_alloc(lua_State *L) {
-    lua_newuserdatauv(L, sizeof(tag_t), 1);
+    tag_t *t = lua_newuserdatauv(L, sizeof(tag_t), 1);
+    p_clear(t, 1);
 }
 
 static void lunaL_tag_gc(lua_State *L, void *p) {

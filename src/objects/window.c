@@ -129,99 +129,6 @@ void window_border_refresh(window_t *window) {
             (uint32_t[]) {window->border_width});
 }
 
-/** Get the window type.
- * \param L The Lua VM state.
- * \param window The window object.
- * \return The number of elements pushed on stack.
- */
-int luaA_window_get_type(lua_State *L, window_t *w) {
-    switch (w->type) {
-        case WINDOW_TYPE_DESKTOP:
-            lua_pushliteral(L, "desktop");
-            break;
-        case WINDOW_TYPE_DOCK:
-            lua_pushliteral(L, "dock");
-            break;
-        case WINDOW_TYPE_SPLASH:
-            lua_pushliteral(L, "splash");
-            break;
-        case WINDOW_TYPE_DIALOG:
-            lua_pushliteral(L, "dialog");
-            break;
-        case WINDOW_TYPE_MENU:
-            lua_pushliteral(L, "menu");
-            break;
-        case WINDOW_TYPE_TOOLBAR:
-            lua_pushliteral(L, "toolbar");
-            break;
-        case WINDOW_TYPE_UTILITY:
-            lua_pushliteral(L, "utility");
-            break;
-        case WINDOW_TYPE_DROPDOWN_MENU:
-            lua_pushliteral(L, "dropdown_menu");
-            break;
-        case WINDOW_TYPE_POPUP_MENU:
-            lua_pushliteral(L, "popup_menu");
-            break;
-        case WINDOW_TYPE_TOOLTIP:
-            lua_pushliteral(L, "tooltip");
-            break;
-        case WINDOW_TYPE_NOTIFICATION:
-            lua_pushliteral(L, "notification");
-            break;
-        case WINDOW_TYPE_COMBO:
-            lua_pushliteral(L, "combo");
-            break;
-        case WINDOW_TYPE_DND:
-            lua_pushliteral(L, "dnd");
-            break;
-        case WINDOW_TYPE_NORMAL:
-            lua_pushliteral(L, "normal");
-            break;
-        default:
-            return 0;
-    }
-    return 1;
-}
-
-/** Set the window type.
- * \param L The Lua VM state.
- * \param window The window object.
- * \return The number of elements pushed on stack.
- */
-int luaA_window_set_type(lua_State *L, window_t *w) {
-    window_type_t type;
-    const char   *buf = luaL_checkstring(L, -1);
-
-    if (A_STREQ(buf, "desktop")) type = WINDOW_TYPE_DESKTOP;
-    else if (A_STREQ(buf, "dock")) type = WINDOW_TYPE_DOCK;
-    else if (A_STREQ(buf, "splash")) type = WINDOW_TYPE_SPLASH;
-    else if (A_STREQ(buf, "dialog")) type = WINDOW_TYPE_DIALOG;
-    else if (A_STREQ(buf, "menu")) type = WINDOW_TYPE_MENU;
-    else if (A_STREQ(buf, "toolbar")) type = WINDOW_TYPE_TOOLBAR;
-    else if (A_STREQ(buf, "utility")) type = WINDOW_TYPE_UTILITY;
-    else if (A_STREQ(buf, "dropdown_menu")) type = WINDOW_TYPE_DROPDOWN_MENU;
-    else if (A_STREQ(buf, "popup_menu")) type = WINDOW_TYPE_POPUP_MENU;
-    else if (A_STREQ(buf, "tooltip")) type = WINDOW_TYPE_TOOLTIP;
-    else if (A_STREQ(buf, "notification")) type = WINDOW_TYPE_NOTIFICATION;
-    else if (A_STREQ(buf, "combo")) type = WINDOW_TYPE_COMBO;
-    else if (A_STREQ(buf, "dnd")) type = WINDOW_TYPE_DND;
-    else if (A_STREQ(buf, "normal")) type = WINDOW_TYPE_NORMAL;
-    else {
-        luaA_warn(L, "Unknown window type '%s'", buf);
-        return 0;
-    }
-
-    if (w->type != type) {
-        w->type = type;
-        if (w->window != XCB_WINDOW_NONE)
-            ewmh_update_window_type(w->window, window_translate_type(w->type));
-        luna_object_emit_signal(L, -3, ":property.type", 0);
-    }
-
-    return 0;
-}
-
 static xproperty_t *luaA_find_xproperty(lua_State *L, int idx) {
     const char *name = luaL_checkstring(L, idx);
     foreach (prop, globalconf.xproperties)
@@ -406,6 +313,91 @@ lunaL_setter(window, _border_width) {
     return 0;
 }
 
+lunaL_getter(window, type) {
+    window_t *w = luaC_checkuclass(L, 1, "Window");
+    switch (w->type) {
+        case WINDOW_TYPE_DESKTOP:
+            lua_pushliteral(L, "desktop");
+            break;
+        case WINDOW_TYPE_DOCK:
+            lua_pushliteral(L, "dock");
+            break;
+        case WINDOW_TYPE_SPLASH:
+            lua_pushliteral(L, "splash");
+            break;
+        case WINDOW_TYPE_DIALOG:
+            lua_pushliteral(L, "dialog");
+            break;
+        case WINDOW_TYPE_MENU:
+            lua_pushliteral(L, "menu");
+            break;
+        case WINDOW_TYPE_TOOLBAR:
+            lua_pushliteral(L, "toolbar");
+            break;
+        case WINDOW_TYPE_UTILITY:
+            lua_pushliteral(L, "utility");
+            break;
+        case WINDOW_TYPE_DROPDOWN_MENU:
+            lua_pushliteral(L, "dropdown_menu");
+            break;
+        case WINDOW_TYPE_POPUP_MENU:
+            lua_pushliteral(L, "popup_menu");
+            break;
+        case WINDOW_TYPE_TOOLTIP:
+            lua_pushliteral(L, "tooltip");
+            break;
+        case WINDOW_TYPE_NOTIFICATION:
+            lua_pushliteral(L, "notification");
+            break;
+        case WINDOW_TYPE_COMBO:
+            lua_pushliteral(L, "combo");
+            break;
+        case WINDOW_TYPE_DND:
+            lua_pushliteral(L, "dnd");
+            break;
+        case WINDOW_TYPE_NORMAL:
+            lua_pushliteral(L, "normal");
+            break;
+        default:
+            return 0;
+    }
+    return 1;
+}
+
+lunaL_setter(window, type) {
+    window_t     *w = luaC_checkuclass(L, 1, "Window");
+    window_type_t type;
+    const char   *buf = luaL_checkstring(L, -1);
+
+    if (A_STREQ(buf, "desktop")) type = WINDOW_TYPE_DESKTOP;
+    else if (A_STREQ(buf, "dock")) type = WINDOW_TYPE_DOCK;
+    else if (A_STREQ(buf, "splash")) type = WINDOW_TYPE_SPLASH;
+    else if (A_STREQ(buf, "dialog")) type = WINDOW_TYPE_DIALOG;
+    else if (A_STREQ(buf, "menu")) type = WINDOW_TYPE_MENU;
+    else if (A_STREQ(buf, "toolbar")) type = WINDOW_TYPE_TOOLBAR;
+    else if (A_STREQ(buf, "utility")) type = WINDOW_TYPE_UTILITY;
+    else if (A_STREQ(buf, "dropdown_menu")) type = WINDOW_TYPE_DROPDOWN_MENU;
+    else if (A_STREQ(buf, "popup_menu")) type = WINDOW_TYPE_POPUP_MENU;
+    else if (A_STREQ(buf, "tooltip")) type = WINDOW_TYPE_TOOLTIP;
+    else if (A_STREQ(buf, "notification")) type = WINDOW_TYPE_NOTIFICATION;
+    else if (A_STREQ(buf, "combo")) type = WINDOW_TYPE_COMBO;
+    else if (A_STREQ(buf, "dnd")) type = WINDOW_TYPE_DND;
+    else if (A_STREQ(buf, "normal")) type = WINDOW_TYPE_NORMAL;
+    else {
+        luaA_warn(L, "Unknown window type '%s'", buf);
+        return 0;
+    }
+
+    if (w->type != type) {
+        w->type = type;
+        if (w->window != XCB_WINDOW_NONE)
+            ewmh_update_window_type(w->window, window_translate_type(w->type));
+        luna_object_emit_signal(L, 1, ":property.type", 0);
+    }
+
+    return 0;
+}
+
 static luaL_Reg window_methods[] = {
     {"struts",        luaA_window_struts       },
     {"_buttons",      luaA_window_buttons      },
@@ -430,6 +422,7 @@ void luaC_register_window(lua_State *L) {
     lunaL_prop(window, _opacity);
     lunaL_prop(window, _border_color);
     lunaL_prop(window, _border_width);
+    lunaL_prop(window, type);
     lua_pop(L, 1);
 }
 

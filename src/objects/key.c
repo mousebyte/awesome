@@ -173,12 +173,6 @@ uint16_t luaA_tomodifiers(lua_State *L, int ud) {
     return mod;
 }
 
-static int luaA_key_set_modifiers(lua_State *L, keyb_t *k) {
-    k->modifiers = luaA_tomodifiers(L, -1);
-    luna_object_emit_signal(L, -3, ":property.modifiers", 0);
-    return 0;
-}
-
 /* It's caller's responsibility to release the returned string. */
 char *key_get_keysym_name(xkb_keysym_t keysym) {
     const ssize_t bufsize = 64;
@@ -318,7 +312,7 @@ luaC_Class key_class = {
     .user_ctor = 1,
     .alloc     = lunaL_key_alloc,
     .gc        = NULL,
-    .methods   = NULL};
+    .methods   = key_methods};
 
 void luaC_register_key(lua_State *L) {
     lua_pushlightuserdata(L, &key_class);

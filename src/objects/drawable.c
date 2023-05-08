@@ -205,6 +205,7 @@ void luaC_register_drawable(lua_State *L) {
     lua_pushlightuserdata(L, &drawable_class);
     luaC_register(L, -1);
     lunaL_readonly_prop(drawable, surface);
+    lua_pop(L, 1);
 }
 
 /* @DOC_cobject_COMMON@ */
