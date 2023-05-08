@@ -122,6 +122,8 @@ static inline void luna_object_push_item(lua_State *L, int idx, const void *ptr)
     luaC_uvrawgetp(L, idx, 1, ptr);
 }
 
+int lunaL_object_constructor(lua_State *L);
+
 int luna_object_connect_signal(lua_State *L, int idx, const char *name);
 
 int luna_object_disconnect_signal(lua_State *L, int idx, const char *name);

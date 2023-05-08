@@ -307,6 +307,11 @@ lunaL_setter(key, modifiers) {
     return 0;
 }
 
+static luaL_Reg key_methods[] = {
+    {"new", lunaL_object_constructor},
+    {NULL,  NULL                    }
+};
+
 luaC_Class key_class = {
     .name      = "Key",
     .parent    = "Object",

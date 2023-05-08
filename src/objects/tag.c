@@ -538,8 +538,9 @@ lunaL_setter(tag, activated) {
 }
 
 static luaL_Reg tag_methods[] = {
-    {"clients", luaA_tag_clients},
-    {NULL,      NULL            }
+    {"new",     lunaL_object_constructor},
+    {"clients", luaA_tag_clients        },
+    {NULL,      NULL                    }
 };
 
 static luaC_Class tag_class = {

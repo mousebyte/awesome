@@ -25,6 +25,7 @@
  */
 #include "object.h"
 #include <moonauxlib.h>
+#include "common/lualib.h"
 #include "signals.h"
 
 // NOTE: may expand with custom newindex later
@@ -121,6 +122,18 @@ static inline int _get_class_signal(lua_State *L, const char *class, const char 
         lua_pop(L, 2);
     }
     return lua_type(L, -1);
+}
+
+int lunaL_object_constructor(lua_State *L) {
+    luaA_checktable(L, 2);
+
+    lua_pushnil(L);
+    while (lua_next(L, 2)) {
+        lua_settable(L, 1);
+        lua_pop(L, 1);
+    }
+
+    return 0;
 }
 
 #define _signal_connect(L) (lua_insert((L), -2), luaC_pmcall((L), "connect", 1, 0, 0))

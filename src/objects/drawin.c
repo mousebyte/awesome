@@ -678,8 +678,9 @@ lunaL_setter(drawin, shape_input) {
 }
 
 static luaL_Reg drawin_methods[] = {
-    {"geometry", lunaL_drawin_geometry},
-    {NULL,       NULL                 }
+    {"new",      lunaL_object_constructor},
+    {"geometry", lunaL_drawin_geometry   },
+    {NULL,       NULL                    }
 };
 
 luaC_Class drawin_class = {

@@ -150,13 +150,18 @@ lunaL_setter(button, button) {
     return 0;
 }
 
+static luaL_Reg button_methods[] = {
+    {"new", lunaL_object_constructor},
+    {NULL,  NULL                    }
+};
+
 static luaC_Class button_class = {
     .name      = "Button",
     .parent    = "Object",
     .user_ctor = 1,
     .alloc     = lunaL_button_alloc,
     .gc        = NULL,
-    .methods   = NULL};
+    .methods   = button_methods};
 
 void luaC_register_button(lua_State *L) {
     lua_pushlightuserdata(L, &button_class);
