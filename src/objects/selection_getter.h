@@ -25,9 +25,10 @@
 #include <lua.h>
 #include <xcb/xcb.h>
 
-void selection_getter_class_setup(lua_State*);
-void event_handle_selectionnotify(xcb_selection_notify_event_t*);
+void event_handle_selectionnotify(xcb_selection_notify_event_t *);
 void property_handle_awesome_selection_atom(uint8_t, xcb_window_t);
+
+void luaC_register_selection_getter(lua_State *);
 
 #endif
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80

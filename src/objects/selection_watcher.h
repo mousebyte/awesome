@@ -25,8 +25,9 @@
 #include <lua.h>
 #include <xcb/xcb.h>
 
-void selection_watcher_class_setup(lua_State*);
-void event_handle_xfixes_selection_notify(xcb_generic_event_t*);
+void event_handle_xfixes_selection_notify(xcb_generic_event_t *);
+
+void luaC_register_selection_watcher(lua_State *);
 
 #endif
 
