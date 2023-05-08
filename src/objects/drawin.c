@@ -232,13 +232,13 @@ static void drawin_moveresize(lua_State *L, int udx, area_t geometry) {
     drawin_update_drawing(L, udx);
 
     if (!AREA_EQUAL(old_geometry, w->geometry))
-        luna_object_emit_signal(L, udx, ":property:geometry", 0);
-    if (old_geometry.x != w->geometry.x) luna_object_emit_signal(L, udx, ":property:x", 0);
-    if (old_geometry.y != w->geometry.y) luna_object_emit_signal(L, udx, ":property:y", 0);
+        luna_object_emit_signal(L, udx, ":property.geometry", 0);
+    if (old_geometry.x != w->geometry.x) luna_object_emit_signal(L, udx, ":property.x", 0);
+    if (old_geometry.y != w->geometry.y) luna_object_emit_signal(L, udx, ":property.y", 0);
     if (old_geometry.width != w->geometry.width)
-        luna_object_emit_signal(L, udx, ":property:width", 0);
+        luna_object_emit_signal(L, udx, ":property.width", 0);
     if (old_geometry.height != w->geometry.height)
-        luna_object_emit_signal(L, udx, ":property:height", 0);
+        luna_object_emit_signal(L, udx, ":property.height", 0);
 
     screen_t *old_screen = screen_getbycoord(old_geometry.x, old_geometry.y);
     screen_t *new_screen = screen_getbycoord(w->geometry.x, w->geometry.y);
@@ -332,7 +332,7 @@ static void drawin_set_visible(lua_State *L, int udx, bool v) {
             luna_object_unref(L, drawin);
         }
 
-        luna_object_emit_signal(L, udx, ":property:visible", 0);
+        luna_object_emit_signal(L, udx, ":property.visible", 0);
         if (strut_has_value(&drawin->strut)) {
             screen_update_workarea(screen_getbycoord(drawin->geometry.x, drawin->geometry.y));
         }
@@ -516,7 +516,7 @@ lunaL_setter(drawin, ontop) {
     if (b != drawin->ontop) {
         drawin->ontop = b;
         stack_windows();
-        luna_object_emit_signal(L, 1, ":property:ontop", 0);
+        luna_object_emit_signal(L, 1, ":property.ontop", 0);
     }
     return 0;
 }
@@ -542,7 +542,7 @@ lunaL_setter(drawin, cursor) {
             p_delete(&drawin->cursor);
             drawin->cursor = a_strdup(buf);
             xwindow_set_cursor(drawin->window, cursor);
-            luna_object_emit_signal(L, 1, ":property:cursor", 0);
+            luna_object_emit_signal(L, 1, ":property.cursor", 0);
         }
     }
     return 0;
@@ -606,7 +606,7 @@ lunaL_setter(drawin, shape_bounding) {
         drawin->window, drawin->geometry.width + 2 * drawin->border_width,
         drawin->geometry.height + 2 * drawin->border_width, XCB_SHAPE_SK_BOUNDING, surf,
         -drawin->border_width);
-    luna_object_emit_signal(L, 1, ":property:shape_bounding", 0);
+    luna_object_emit_signal(L, 1, ":property.shape_bounding", 0);
     return 0;
 }
 
@@ -639,7 +639,7 @@ lunaL_setter(drawin, shape_clip) {
     xwindow_set_shape(
         drawin->window, drawin->geometry.width, drawin->geometry.height, XCB_SHAPE_SK_CLIP, surf,
         0);
-    luna_object_emit_signal(L, 1, ":property:shape_clip", 0);
+    luna_object_emit_signal(L, 1, ":property.shape_clip", 0);
     return 0;
 }
 
@@ -673,7 +673,7 @@ lunaL_setter(drawin, shape_input) {
         drawin->window, drawin->geometry.width + 2 * drawin->border_width,
         drawin->geometry.height + 2 * drawin->border_width, XCB_SHAPE_SK_INPUT, surf,
         -drawin->border_width);
-    luna_object_emit_signal(L, 1, ":property:shape_input", 0);
+    luna_object_emit_signal(L, 1, ":property.shape_input", 0);
     return 0;
 }
 
