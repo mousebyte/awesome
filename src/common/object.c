@@ -140,48 +140,52 @@ int lunaL_object_constructor(lua_State *L) {
 #define _signal_disconnect(L) (lua_insert((L), -2), luaC_pmcall((L), "disconnect", 1, 0, 0))
 #define _signal_emit(L, nargs) (lua_insert((L), -(nargs)), lua_pcall((L), (nargs), 0, 0))
 
-int luna_object_connect_signal(lua_State *L, int idx, const char *name) {
-    int ret = LUA_ERRRUN;
-    if (lua_getfield(L, idx, name) == LUA_TUSERDATA) {
-        ret = _signal_connect(L);
-        lua_pop(L, 1);
+void luna_object_connect_signal(lua_State *L, int idx, const char *name) {
+    if (lua_getfield(L, idx, "Signals") == LUA_TUSERDATA) {
+        lua_insert(L, -2);
+        luna_signal_store_connect(L, -2, name);
     }
-    return ret;
+    lua_pop(L, 1);
 }
 
-int luna_object_disconnect_signal(lua_State *L, int idx, const char *name) {
-    int ret = LUA_ERRRUN;
-    if (lua_getfield(L, idx, name) == LUA_TUSERDATA) {
-        ret = _signal_disconnect(L);
-        lua_pop(L, 1);
+void luna_object_disconnect_signal(lua_State *L, int idx, const char *name) {
+    if (lua_getfield(L, idx, "Signals") == LUA_TUSERDATA) {
+        lua_insert(L, -2);
+        luna_signal_store_disconnect(L, -2, name);
     }
-    return ret;
+    lua_pop(L, 1);
 }
 
-int luna_object_emit_signal(lua_State *L, int idx, const char *name, int nargs) {
-    return lua_getfield(L, idx, name) == LUA_TUSERDATA ? _signal_emit(L, nargs) : LUA_ERRRUN;
-}
-
-int luna_class_connect_signal(lua_State *L, const char *class, const char *name) {
-    int ret = LUA_ERRRUN;
-    if (_get_class_signal(L, class, name) == LUA_TUSERDATA) {
-        ret = _signal_connect(L);
-        lua_pop(L, 1);
+void luna_object_emit_signal(lua_State *L, int idx, const char *name, int nargs) {
+    if (lua_getfield(L, idx, "Signals") == LUA_TUSERDATA) {
+        lua_insert(L, -nargs);
+        luna_signal_store_emit(L, -nargs - 1, name, nargs);
     }
-    return ret;
+    lua_pop(L, 1);
 }
 
-int luna_class_disconnect_signal(lua_State *L, const char *class, const char *name) {
-    int ret = LUA_ERRRUN;
-    if (_get_class_signal(L, class, name) == LUA_TUSERDATA) {
-        ret = _signal_disconnect(L);
-        lua_pop(L, 1);
+void luna_class_connect_signal(lua_State *L, const char *class, const char *name) {
+    if (luaC_pushclass(L, class)) {
+        lua_insert(L, -2);
+        luna_object_connect_signal(L, -2, name);
     }
-    return ret;
+    lua_pop(L, 1);
 }
 
-int luna_class_emit_signal(lua_State *L, const char *class, const char *name, int nargs) {
-    return _get_class_signal(L, class, name) == LUA_TUSERDATA ? _signal_emit(L, nargs) : LUA_ERRRUN;
+void luna_class_disconnect_signal(lua_State *L, const char *class, const char *name) {
+    if (luaC_pushclass(L, class)) {
+        lua_insert(L, -2);
+        luna_object_disconnect_signal(L, -2, name);
+    }
+    lua_pop(L, 1);
+}
+
+void luna_class_emit_signal(lua_State *L, const char *class, const char *name, int nargs) {
+    if (luaC_pushclass(L, class)) {
+        lua_insert(L, -nargs - 1);
+        luna_object_emit_signal(L, -nargs - 1, name, nargs);
+    }
+    lua_pop(L, 1);
 }
 
 void luna_class_add_property(

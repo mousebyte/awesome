@@ -26,6 +26,7 @@
 
 #include "common/signals.h"
 #include <string.h>
+#include "common/lualib.h"
 
 static inline int _cptr_cmp(const void *a, const void *b) {
     const void **x = (const void **)a, **y = (const void **)b;
@@ -55,75 +56,121 @@ static inline signal_t *signal_array_getbyid(signal_array_t *arr, unsigned long 
     return signal_array_lookup(arr, &sig);
 }
 
-static int signal_interface_init(lua_State *L) {
-    lua_setfield(L, 1, "_id");     // self._id = arg 2
-    lua_setfield(L, 1, "_store");  // self._store = arg 1
-    return 0;
-}
-
-static int signal_interface_connect(lua_State *L) {
-    lua_getfield(L, 1, "_store");
-    lua_getfield(L, 1, "_id");
-    signal_array_t *arr      = luaC_checkuclass(L, -2, "SignalStore");
-    unsigned long   id       = luaL_checknumber(L, -1);
-    const void     *ref      = lua_topointer(L, 2);
+void luna_signal_store_connect(lua_State *L, int idx, const char *name) {
+    luaA_checkfunction(L, -1);
+    signal_array_t *arr      = luaC_checkuclass(L, idx, "SignalStore");
+    unsigned long   id       = a_strhash((unsigned const char *)name);
+    const void     *ref      = lua_topointer(L, -1);
     signal_t       *sigfound = signal_array_getbyid(arr, id);
-    lua_pushvalue(L, 2);  // push func
+
     if (sigfound) {
-        luaC_uvrawsetp(L, -3, 2, ref);
         cptr_array_insert(&sigfound->slots, ref);
     } else {
         signal_t sig = {.id = id};
-        luaC_uvrawsetp(L, -3, 2, ref);
+        cptr_array_init(&sig.slots);
         cptr_array_insert(&sig.slots, ref);
         signal_array_insert(arr, sig);
     }
-    // construct connection object from store, id, and func pointer
-    lua_pushlightuserdata(L, (void *)ref);
-    luaC_construct(L, 3, "Connection");
-    return 1;
+
+    lua_getiuservalue(L, idx, 2);
+    lua_getmetatable(L, -1);
+    if (lua_rawgetp(L, -1, ref) == LUA_TNUMBER) {
+        // already connected to another signal, increase refcount
+        int count = lua_tonumber(L, -1);
+        lua_pushnumber(L, count + 1);  // push new refcount
+        lua_rawsetp(L, -3, ref);       // set refcount
+        lua_pop(L, 4);                 // pop old count, slot table, metatable, and func
+    } else {
+        lua_pushnumber(L, 1);     // push refcount
+        lua_rawsetp(L, -3, ref);  // set refcount
+        lua_rotate(L, -4, -1);    // rotate func to top
+        lua_rawsetp(L, -4, ref);  // slottable[ref] = func
+        lua_pop(L, 3);            // pop nil, slot table and metatable
+    }
 }
 
-static int signal_interface_disconnect(lua_State *L) {
-    lua_getfield(L, 1, "_store");
-    lua_getfield(L, 1, "_id");
-    signal_array_t *arr = luaC_checkuclass(L, -2, "SignalStore");
-    unsigned long   id  = luaL_checknumber(L, -1);
-    // check for lightuserdata in case calling from connection
-    const void     *ref = lua_islightuserdata(L, 2) ? lua_touserdata(L, 2) : lua_topointer(L, 2);
+void luna_signal_store_disconnect(lua_State *L, int idx, const char *name) {
+    signal_array_t *arr = luaC_checkuclass(L, idx, "SignalStore");
+    unsigned long   id  = a_strhash((unsigned const char *)name);
+    const void     *ref = lua_islightuserdata(L, -1) ? lua_touserdata(L, -1) : lua_topointer(L, -1);
     signal_t       *sigfound = signal_array_getbyid(arr, id);
     if (sigfound) {
         const void **elem;
         if ((elem = cptr_array_lookup(&sigfound->slots, &ref))) {
-            lua_pushnil(L);
-            luaC_uvrawsetp(L, -3, 2, *elem);
             cptr_array_remove(&sigfound->slots, elem);
         }
         if (sigfound->slots.len == 0) {
             cptr_array_wipe(&sigfound->slots);
             signal_array_remove(arr, sigfound);
         }
+
+        lua_getiuservalue(L, idx, 2);
+        lua_getmetatable(L, -1);
+        if (lua_rawgetp(L, -1, ref) == LUA_TNUMBER) {
+            int count = lua_tonumber(L, -1);
+            if (count > 1) {
+                // still being used, decrease refcount
+                lua_pushnumber(L, count - 1);  // push new refcount
+                lua_rawsetp(L, -3, ref);       // set refcount
+            } else {
+                lua_pushnil(L);
+                lua_rawsetp(L, -3, ref);  // unset refcount
+                lua_pushnil(L);
+                lua_rawsetp(L, -4, ref);  // slottable[ref] = nil
+            }
+        }
+        lua_pop(L, 3);  // pop old count, slot table, and metatable
     }
+    lua_pop(L, 1);  // pop func
+}
+
+void luna_signal_store_emit(lua_State *L, int idx, const char *name, int nargs) {
+    signal_array_t *arr      = luaC_checkuclass(L, idx, "SignalStore");
+    unsigned long   id       = a_strhash((unsigned const char *)name);
+    signal_t       *sigfound = signal_array_getbyid(arr, id);
+    if (sigfound) {
+        int start = lua_gettop(L) - nargs;
+        lua_getiuservalue(L, idx, 2);  // get slot table from store
+        foreach (slot, sigfound->slots) {
+            lua_rawgetp(L, -1, *slot);  // get func from slot table
+            for (int i = start; i < start + nargs; i++)
+                lua_pushvalue(L, i);    // push copies of args
+            lua_pcall(L, nargs, 0, 0);  // call the func
+        }
+        lua_pop(L, 1);  // pop slot table
+    }
+    lua_pop(L, nargs);  // pop args
+}
+
+static int signal_interface_init(lua_State *L) {
+    lua_setfield(L, 1, "_name");   // self._id = arg 2
+    lua_setfield(L, 1, "_store");  // self._store = arg 1
+    return 0;
+}
+
+static int signal_interface_connect(lua_State *L) {
+    lua_getfield(L, 1, "_store");
+    lua_getfield(L, 1, "_name");
+    lua_pushvalue(L, 2);  // push func
+    luna_signal_store_connect(L, -3, lua_tostring(L, -2));
+    // construct connection object from store, id, and func pointer
+    lua_pushlightuserdata(L, (void *)lua_topointer(L, 2));
+    luaC_construct(L, 3, "Connection");
+    return 1;
+}
+
+static int signal_interface_disconnect(lua_State *L) {
+    if (lua_getfield(L, 1, "_store") != LUA_TUSERDATA) return 0;
+    lua_getfield(L, 1, "_name");
+    lua_pushvalue(L, 2);  // push func
+    luna_signal_store_disconnect(L, -3, lua_tostring(L, -2));
     return 0;
 }
 
 static int signal_interface_call(lua_State *L) {
     lua_getfield(L, 1, "_store");
-    lua_getfield(L, 1, "_id");
-    signal_array_t *arr      = luaC_checkuclass(L, -2, "SignalStore");
-    unsigned long   id       = luaL_checknumber(L, -1);
-    signal_t       *sigfound = signal_array_getbyid(arr, id);
-    lua_rotate(L, 2, 2);  // rotate args to top
-    if (sigfound) {
-        int nargs = lua_gettop(L) - 3;  // -3 for self, store, and id
-        lua_getiuservalue(L, 2, 2);     // get slot table from store
-        foreach (slot, sigfound->slots) {
-            lua_rawgetp(L, -1, *slot);       // get func from slot table
-            for (int i = 0; i < nargs; i++)  // push copies of args
-                lua_pushvalue(L, i + 3);     // +3 for self, store, and id
-            lua_call(L, nargs, 0);           // call the func
-        }
-    }
+    lua_getfield(L, 1, "_name");
+    luna_signal_store_emit(L, -2, lua_tostring(L, -1), lua_gettop(L) - 3);
     return 0;
 }
 
@@ -146,12 +193,16 @@ static luaC_Class signal_interface_class = {
 static void signal_store_alloc(lua_State *L) {
     signal_array_t *arr = lua_newuserdatauv(L, sizeof(signal_array_t), 2);
     lua_newtable(L);  // slot table
+    lua_newtable(L);  // slot metatable (for refcount)
+    lua_setmetatable(L, -2);
     lua_setiuservalue(L, -2, 2);
     signal_array_init(arr);
 }
 
 static void signal_store_gc(lua_State *L, void *p) {
     signal_array_t *arr = (signal_array_t *)p;
+    foreach (sig, *arr)
+        cptr_array_wipe(&sig->slots);
     signal_array_wipe(arr);
 }
 
@@ -173,7 +224,7 @@ static luaC_Class signal_store_class = {
 
 static int connection_init(lua_State *L) {
     lua_setfield(L, 1, "_value");  // self._value = arg 3
-    lua_setfield(L, 1, "_id");     // self._id = arg 2
+    lua_setfield(L, 1, "_name");   // self._id = arg 2
     lua_setfield(L, 1, "_store");  // self._store = arg 1
     return 0;
 }
@@ -181,12 +232,13 @@ static int connection_init(lua_State *L) {
 static int connection_connected(lua_State *L) {
     int ret = 0;
     if (lua_getfield(L, 1, "_store") == LUA_TUSERDATA) {
-        lua_getfield(L, 1, "_id");
-        signal_array_t *arr      = lua_touserdata(L, -2);
-        signal_t       *sigfound = signal_array_getbyid(arr, luaL_checknumber(L, -1));
+        lua_getfield(L, 1, "_name");
+        signal_array_t *arr = lua_touserdata(L, -2);
+        signal_t       *sigfound =
+            signal_array_getbyid(arr, a_strhash((const unsigned char *)lua_tostring(L, -1)));
         if (sigfound) {
             lua_getfield(L, 1, "_value");
-            const void *ref = lua_topointer(L, -1);
+            const void *ref = lua_touserdata(L, -1);
             ret             = (cptr_array_lookup(&sigfound->slots, &ref) != NULL);
         }
     }
@@ -196,17 +248,15 @@ static int connection_connected(lua_State *L) {
 
 static int connection_scoped(lua_State *L) {
     lua_getfield(L, 1, "_store");
-    lua_getfield(L, 1, "_id");
+    lua_getfield(L, 1, "_name");
     lua_getfield(L, 1, "_value");
     luaC_construct(L, 3, "ScopedConnection");
     return 1;
 }
 
 static int scoped_connection_gc(lua_State *L) {
-    if (lua_getfield(L, 1, "_store") == LUA_TUSERDATA) {
-        lua_getfield(L, 1, "_value");
-        luaC_pmcall(L, "disconnect", 1, 0, 0);
-    }
+    lua_getfield(L, 1, "_value");
+    luaC_pmcall(L, "disconnect", 1, 0, 0);
     return 0;
 }
 

@@ -31,6 +31,10 @@
 #include <stdlib.h>
 #include "array.h"
 
+void luna_signal_store_connect(lua_State *, int, const char *);
+void luna_signal_store_disconnect(lua_State *, int, const char *);
+void luna_signal_store_emit(lua_State *, int, const char *, int);
+
 void luaC_register_signal_store(lua_State *);
 
 #endif

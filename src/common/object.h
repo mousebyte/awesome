@@ -124,17 +124,17 @@ static inline void luna_object_push_item(lua_State *L, int idx, const void *ptr)
 
 int lunaL_object_constructor(lua_State *L);
 
-int luna_object_connect_signal(lua_State *L, int idx, const char *name);
+void luna_object_connect_signal(lua_State *L, int idx, const char *name);
 
-int luna_object_disconnect_signal(lua_State *L, int idx, const char *name);
+void luna_object_disconnect_signal(lua_State *L, int idx, const char *name);
 
-int luna_object_emit_signal(lua_State *L, int idx, const char *name, int nargs);
+void luna_object_emit_signal(lua_State *L, int idx, const char *name, int nargs);
 
-int luna_class_connect_signal(lua_State *L, const char *class, const char *name);
+void luna_class_connect_signal(lua_State *L, const char *class, const char *name);
 
-int luna_class_disconnect_signal(lua_State *, const char *class, const char *);
+void luna_class_disconnect_signal(lua_State *, const char *class, const char *);
 
-int luna_class_emit_signal(lua_State *L, const char *class, const char *name, int nargs);
+void luna_class_emit_signal(lua_State *L, const char *class, const char *name, int nargs);
 
 void luna_class_add_property(
     lua_State    *L,
