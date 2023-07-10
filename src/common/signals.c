@@ -64,7 +64,6 @@ void luna_signal_store_connect(lua_State *L, int idx, const char *name) {
     signal_t       *sigfound = signal_array_getbyid(arr, id);
     lua_getiuservalue(L, idx, 2);                  // get slot table
     const void *ref = _luna_object_incref(L, -2);  // ref func
-    lua_pop(L, 2);                                 // pop slot table and func
 
     if (sigfound) {
         cptr_array_insert(&sigfound->slots, ref);
@@ -74,6 +73,8 @@ void luna_signal_store_connect(lua_State *L, int idx, const char *name) {
         cptr_array_insert(&sig.slots, ref);
         signal_array_insert(arr, sig);
     }
+
+    lua_pop(L, 2);  // pop slot table and func
 }
 
 void luna_signal_store_disconnect(lua_State *L, int idx, const char *name) {
@@ -81,7 +82,6 @@ void luna_signal_store_disconnect(lua_State *L, int idx, const char *name) {
     unsigned long   id       = a_strhash((unsigned const char *)name);
     signal_t       *sigfound = signal_array_getbyid(arr, id);
     const void     *ref = lua_islightuserdata(L, -1) ? lua_touserdata(L, -1) : lua_topointer(L, -1);
-    lua_pop(L, 1);  // pop func
 
     if (sigfound) {
         const void **elem;
@@ -96,6 +96,8 @@ void luna_signal_store_disconnect(lua_State *L, int idx, const char *name) {
         _luna_object_decref(L, ref);   // unref func
         lua_pop(L, 1);                 // pop slot table
     }
+
+    lua_pop(L, 1);  // pop func
 }
 
 void luna_signal_store_emit(lua_State *L, int idx, const char *name, int nargs) {
