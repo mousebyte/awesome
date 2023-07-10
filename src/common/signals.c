@@ -24,9 +24,10 @@
  *
  */
 
-#include "common/signals.h"
+#include "signals.h"
 #include <string.h>
-#include "common/lualib.h"
+#include "lualib.h"
+#include "refcount.h"
 
 static inline int _cptr_cmp(const void *a, const void *b) {
     const void **x = (const void **)a, **y = (const void **)b;
@@ -60,8 +61,10 @@ void luna_signal_store_connect(lua_State *L, int idx, const char *name) {
     luaA_checkfunction(L, -1);
     signal_array_t *arr      = luaC_checkuclass(L, idx, "SignalStore");
     unsigned long   id       = a_strhash((unsigned const char *)name);
-    const void     *ref      = lua_topointer(L, -1);
     signal_t       *sigfound = signal_array_getbyid(arr, id);
+    lua_getiuservalue(L, idx, 2);                  // get slot table
+    const void *ref = _luna_object_incref(L, -2);  // ref func
+    lua_pop(L, 2);                                 // pop slot table and func
 
     if (sigfound) {
         cptr_array_insert(&sigfound->slots, ref);
@@ -71,29 +74,15 @@ void luna_signal_store_connect(lua_State *L, int idx, const char *name) {
         cptr_array_insert(&sig.slots, ref);
         signal_array_insert(arr, sig);
     }
-
-    lua_getiuservalue(L, idx, 2);
-    lua_getmetatable(L, -1);
-    if (lua_rawgetp(L, -1, ref) == LUA_TNUMBER) {
-        // already connected to another signal, increase refcount
-        int count = lua_tonumber(L, -1);
-        lua_pushnumber(L, count + 1);  // push new refcount
-        lua_rawsetp(L, -3, ref);       // set refcount
-        lua_pop(L, 4);                 // pop old count, slot table, metatable, and func
-    } else {
-        lua_pushnumber(L, 1);     // push refcount
-        lua_rawsetp(L, -3, ref);  // set refcount
-        lua_rotate(L, -4, -1);    // rotate func to top
-        lua_rawsetp(L, -4, ref);  // slottable[ref] = func
-        lua_pop(L, 3);            // pop nil, slot table and metatable
-    }
 }
 
 void luna_signal_store_disconnect(lua_State *L, int idx, const char *name) {
-    signal_array_t *arr = luaC_checkuclass(L, idx, "SignalStore");
-    unsigned long   id  = a_strhash((unsigned const char *)name);
-    const void     *ref = lua_islightuserdata(L, -1) ? lua_touserdata(L, -1) : lua_topointer(L, -1);
+    signal_array_t *arr      = luaC_checkuclass(L, idx, "SignalStore");
+    unsigned long   id       = a_strhash((unsigned const char *)name);
     signal_t       *sigfound = signal_array_getbyid(arr, id);
+    const void     *ref = lua_islightuserdata(L, -1) ? lua_touserdata(L, -1) : lua_topointer(L, -1);
+    lua_pop(L, 1);  // pop func
+
     if (sigfound) {
         const void **elem;
         if ((elem = cptr_array_lookup(&sigfound->slots, &ref))) {
@@ -103,25 +92,10 @@ void luna_signal_store_disconnect(lua_State *L, int idx, const char *name) {
             cptr_array_wipe(&sigfound->slots);
             signal_array_remove(arr, sigfound);
         }
-
-        lua_getiuservalue(L, idx, 2);
-        lua_getmetatable(L, -1);
-        if (lua_rawgetp(L, -1, ref) == LUA_TNUMBER) {
-            int count = lua_tonumber(L, -1);
-            if (count > 1) {
-                // still being used, decrease refcount
-                lua_pushnumber(L, count - 1);  // push new refcount
-                lua_rawsetp(L, -3, ref);       // set refcount
-            } else {
-                lua_pushnil(L);
-                lua_rawsetp(L, -3, ref);  // unset refcount
-                lua_pushnil(L);
-                lua_rawsetp(L, -4, ref);  // slottable[ref] = nil
-            }
-        }
-        lua_pop(L, 3);  // pop old count, slot table, and metatable
+        lua_getiuservalue(L, idx, 2);  // get slot table
+        _luna_object_decref(L, ref);   // unref func
+        lua_pop(L, 1);                 // pop slot table
     }
-    lua_pop(L, 1);  // pop func
 }
 
 void luna_signal_store_emit(lua_State *L, int idx, const char *name, int nargs) {
