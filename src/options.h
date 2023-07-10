@@ -18,6 +18,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
+#include <basedir.h>
 #include "common/array.h"
 #include "globalconf.h"
 
@@ -35,5 +36,10 @@ typedef enum {
 } awesome_init_config_t;
 
 char *options_detect_shebang(int argc, char **argv);
-bool options_init_config(xdgHandle *xdg, char *execpath, char *configpath, int *init_flags, string_array_t *paths);
+bool  options_init_config(
+     xdgHandle      *xdg,
+     char           *execpath,
+     char           *configpath,
+     int            *init_flags,
+     string_array_t *paths);
 char *options_check_args(int argc, char **argv, int *init_flags, string_array_t *paths);

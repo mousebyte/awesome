@@ -357,7 +357,7 @@ static int luaA_mbstrlen(lua_State *L) {
  */
 static int luaAe_type(lua_State *L) {
     luaL_checkany(L, 1);
-    lua_pushstring(L, luaA_typename(L, 1));
+    lua_pushstring(L, luaC_typename(L, 1));
     return 1;
 }
 

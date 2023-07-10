@@ -22,11 +22,8 @@
 #ifndef AWESOME_GLOBALCONF_H
 #define AWESOME_GLOBALCONF_H
 
-#include "cairo.h"
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
-
-#include <glib.h>
 
 #include <X11/Xresource.h>
 #include <xcb/xcb_cursor.h>
@@ -41,6 +38,8 @@
 
 #include "common/buffer.h"
 #include "common/xembed.h"
+#include "draw.h"
+#include "luaa.h"
 #include "objects/key.h"
 
 #define ROOT_WINDOW_EVENT_MASK                                                      \
