@@ -39,8 +39,6 @@
 #include "common/buffer.h"
 #include "common/xembed.h"
 #include "draw.h"
-#include "luaa.h"
-#include "objects/key.h"
 
 #define ROOT_WINDOW_EVENT_MASK                                                      \
     (const uint32_t[]) {                                                            \
@@ -59,6 +57,7 @@ typedef struct button_t      button_t;
 typedef struct client_t      client_t;
 typedef struct tag           tag_t;
 typedef struct xproperty     xproperty_t;
+typedef struct keyb_t        keyb_t;
 struct sequence_pair {
     xcb_void_cookie_t begin;
     xcb_void_cookie_t end;
@@ -71,6 +70,7 @@ ARRAY_TYPE(screen_t *, screen)
 ARRAY_TYPE(client_t *, client)
 ARRAY_TYPE(drawin_t *, drawin)
 ARRAY_TYPE(xproperty_t, xproperty)
+ARRAY_TYPE(keyb_t *, key)
 DO_ARRAY(sequence_pair_t, sequence_pair, DO_NOTHING)
 DO_ARRAY(xcb_window_t, window, DO_NOTHING)
 

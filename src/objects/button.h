@@ -23,7 +23,6 @@
 #ifndef AWESOME_OBJECTS_BUTTON_H
 #define AWESOME_OBJECTS_BUTTON_H
 
-#include "common/object.h"
 #include "globalconf.h"
 
 #include <stdint.h>

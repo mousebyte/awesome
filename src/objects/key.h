@@ -23,21 +23,22 @@
 #ifndef AWESOME_OBJECTS_KEY_H
 #define AWESOME_OBJECTS_KEY_H
 
+#include <lua.h>
 #include <xcb/xproto.h>
 #include <xkbcommon/xkbcommon.h>
 #include "common/array.h"
-#include "common/object.h"
+#include "globalconf.h"
 
-typedef struct keyb_t {
+struct keyb_t {
     /** Key modifier */
     uint16_t      modifiers;
     /** Keysym */
     xcb_keysym_t  keysym;
     /** Keycode */
     xcb_keycode_t keycode;
-} keyb_t;
+};
 
-DO_ARRAY(keyb_t *, key, DO_NOTHING)
+ARRAY_FUNCS(keyb_t *, key, DO_NOTHING)
 
 void luaC_register_key(lua_State *);
 

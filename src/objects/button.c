@@ -36,6 +36,8 @@
 
 #include "button.h"
 #include "common/lualib.h"
+#include "common/object.h"
+#include "objects/key.h"
 
 /** Button object.
  *

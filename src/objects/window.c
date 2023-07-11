@@ -52,7 +52,9 @@
  */
 
 #include "objects/window.h"
+#include <luaclasslib.h>
 #include "common/atoms.h"
+#include "common/object.h"
 #include "common/xutil.h"
 #include "ewmh.h"
 #include "luaa.h"

@@ -22,6 +22,7 @@
 #ifndef AWESOME_OBJECTS_CLIENT_H
 #define AWESOME_OBJECTS_CLIENT_H
 
+#include "common/object.h"
 #include "draw.h"
 #include "objects/window.h"
 #include "stack.h"

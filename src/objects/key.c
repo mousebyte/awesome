@@ -37,6 +37,7 @@
 
 #include "objects/key.h"
 #include "common/lualib.h"
+#include "common/object.h"
 #include "common/xutil.h"
 #include "luaa.h"
 #include "xkb.h"

@@ -24,6 +24,7 @@
 #ifndef AWESOME_OBJECTS_DRAWIN_H
 #define AWESOME_OBJECTS_DRAWIN_H
 
+#include <luaclasslib.h>
 #include "objects/drawable.h"
 #include "objects/window.h"
 

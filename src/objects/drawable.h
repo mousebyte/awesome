@@ -24,7 +24,6 @@
 #ifndef AWESOME_OBJECTS_DRAWABLE_H
 #define AWESOME_OBJECTS_DRAWABLE_H
 
-#include "common/object.h"
 #include "draw.h"
 
 typedef void drawable_refresh_callback(void *);

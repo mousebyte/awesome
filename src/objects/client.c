@@ -94,6 +94,7 @@
 #include "ewmh.h"
 #include "luaa.h"
 #include "objects/drawable.h"
+#include "objects/key.h"
 #include "objects/screen.h"
 #include "objects/tag.h"
 #include "property.h"
