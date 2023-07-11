@@ -270,4 +270,7 @@ void luaC_register_signal_store(lua_State *L) {
     luaC_register(L, -1);
     luaC_injectindex(L, -1, signal_store_index);
     lua_pop(L, 2);
+
+    luaC_construct(L, 0, "SignalStore");
+    lua_setfield(L, LUA_REGISTRYINDEX, LUNA_GLOBAL_SIGNALS);
 }

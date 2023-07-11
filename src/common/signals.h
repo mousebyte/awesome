@@ -30,10 +30,35 @@
 #include <luaclasslib.h>
 #include <stdlib.h>
 #include "array.h"
+#define LUNA_GLOBAL_SIGNALS "lunaria.signals.global"
 
 void luna_signal_store_connect(lua_State *, int, const char *);
 void luna_signal_store_disconnect(lua_State *, int, const char *);
 void luna_signal_store_emit(lua_State *, int, const char *, int);
+
+static inline void luna_connect_global_signal(lua_State *L, const char *name) {
+    lua_pushstring(L, LUNA_GLOBAL_SIGNALS);
+    lua_rawget(L, LUA_REGISTRYINDEX);  // get global SignalStore
+    lua_insert(L, -2);                 // insert before func
+    luna_signal_store_connect(L, -2, name);
+    lua_pop(L, 1);  // pop SignalStore
+}
+
+static inline void luna_disconnect_global_signal(lua_State *L, const char *name) {
+    lua_pushstring(L, LUNA_GLOBAL_SIGNALS);
+    lua_rawget(L, LUA_REGISTRYINDEX);  // get global SignalStore
+    lua_insert(L, -2);                 // insert before func
+    luna_signal_store_disconnect(L, -2, name);
+    lua_pop(L, 1);  // pop SignalStore
+}
+
+static inline void luna_emit_global_signal(lua_State *L, const char *name, int nargs) {
+    lua_pushstring(L, LUNA_GLOBAL_SIGNALS);
+    lua_rawget(L, LUA_REGISTRYINDEX);  // get global SignalStore
+    lua_insert(L, -nargs - 1);         // insert before args
+    luna_signal_store_emit(L, -nargs - 1, name, nargs);
+    lua_pop(L, 1);  // pop SignalStore
+}
 
 void luaC_register_signal_store(lua_State *);
 
