@@ -35,43 +35,11 @@
     "Awesome only supports Lua versions 5.1-5.4 and LuaJIT2, please refer to https://awesomewm.org/apidoc/documentation/10-building-and-testing.md.html#Building"
 #endif
 
-#define luaA_deprecate(L, repl)                                                                    \
-    do {                                                                                           \
-        luaA_warn(                                                                                 \
-            L, "%s: This function is deprecated and will be removed, see %s", __FUNCTION__, repl); \
-        lua_pushlstring(L, __FUNCTION__, sizeof(__FUNCTION__));                                    \
-        signal_object_emit(L, &global_signals, "debug::deprecation", 1);                           \
-    } while (0)
-
 static inline void free_string(char **c) {
     p_delete(c);
 }
 
 DO_ARRAY(char *, string, free_string)
-
-/** Print a warning about some Lua code.
- * This is less mean than luaL_error() which setjmp via lua_error() and kills
- * everything. This only warn, it's up to you to then do what's should be done.
- * \param L The Lua VM state.
- * \param fmt The warning message.
- */
-static inline void __attribute__((format(printf, 2, 3)))
-luaA_warn(lua_State *L, const char *fmt, ...) {
-    va_list ap;
-    luaL_where(L, 1);
-    fprintf(stderr, "%s%sW: ", a_current_time_str(), lua_tostring(L, -1));
-    lua_pop(L, 1);
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-    fprintf(stderr, "\n");
-
-#if LUA_VERSION_NUM >= 502
-    luaL_traceback(L, L, NULL, 2);
-    fprintf(stderr, "%s\n", lua_tostring(L, -1));
-    lua_pop(L, 1);
-#endif
-}
 
 static inline int luaA_typerror(lua_State *L, int narg, const char *tname) {
     const char *msg = lua_pushfstring(L, "%s expected, got %s", tname, luaL_typename(L, narg));
