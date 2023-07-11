@@ -25,49 +25,46 @@
 
 #define _GNU_SOURCE
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdarg.h>
 #include <assert.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#if !(defined (__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined (__DragonFly__))
+#if !(defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__))
 #include <alloca.h>
 #endif
 
 /** \brief replace \c NULL strings with empty strings */
-#define NONULL(x)       (x ? x : "")
+#define NONULL(x) (x ? x : "")
 
 #define DO_NOTHING(...)
 
 #undef MAX
 #undef MIN
-#define MAX(a,b) ((a) < (b) ? (b) : (a))
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) < (b) ? (b) : (a))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-#define unsigned_subtract(a, b)  \
-    do {                         \
-        if (b > a)               \
-            a = 0;               \
-        else                     \
-            a -= b;              \
+#define unsigned_subtract(a, b) \
+    do {                        \
+        if (b > a) a = 0;       \
+        else a -= b;            \
     } while (0)
 
-#define ssizeof(foo)            (ssize_t)sizeof(foo)
-#define countof(foo)            (ssizeof(foo) / ssizeof(foo[0]))
-#define fieldsizeof(type_t, m)  sizeof(((type_t *)0)->m)
-#define fieldtypeof(type_t, m)  typeof(((type_t *)0)->m)
+#define ssizeof(foo) (ssize_t)sizeof(foo)
+#define countof(foo) (ssizeof(foo) / ssizeof(foo[0]))
+#define fieldsizeof(type_t, m) sizeof(((type_t *)0)->m)
+#define fieldtypeof(type_t, m) typeof(((type_t *)0)->m)
 
-#define p_alloca(type, count)                                \
-        ((type *)memset(alloca(sizeof(type) * (count)),      \
-                        0, sizeof(type) * (count)))
+#define p_alloca(type, count) \
+    ((type *)memset(alloca(sizeof(type) * (count)), 0, sizeof(type) * (count)))
 
-#define p_alloc_nr(x)           (((x) + 16) * 3 / 2)
-#define p_new(type, count)      ((type *)xmalloc(sizeof(type) * (count)))
-#define p_clear(p, count)       ((void)memset((p), 0, sizeof(*(p)) * (count)))
-#define p_realloc(pp, count)    xrealloc((void*)(pp), sizeof(**(pp)) * (count))
-#define p_dup(p, count)         xmemdup((p), sizeof(*(p)) * (count))
+#define p_alloc_nr(x) (((x) + 16) * 3 / 2)
+#define p_new(type, count) ((type *)xmalloc(sizeof(type) * (count)))
+#define p_clear(p, count) ((void)memset((p), 0, sizeof(*(p)) * (count)))
+#define p_realloc(pp, count) xrealloc((void *)(pp), sizeof(**(pp)) * (count))
+#define p_dup(p, count) xmemdup((p), sizeof(*(p)) * (count))
 #define p_grow(pp, goalnb, allocnb)                  \
     do {                                             \
         if ((goalnb) > *(allocnb)) {                 \
@@ -80,46 +77,38 @@
         }                                            \
     } while (0)
 
-#define p_delete(mem_p)                              \
-    do {                                             \
-        void **__ptr = (void **) (mem_p);            \
-        free(*__ptr);                                \
-        *(void **)__ptr = NULL;                      \
+#define p_delete(mem_p)                  \
+    do {                                 \
+        void **__ptr = (void **)(mem_p); \
+        free(*__ptr);                    \
+        *(void **)__ptr = NULL;          \
     } while (0)
 
 #ifdef __GNUC__
-#define likely(expr)    __builtin_expect(!!(expr), 1)
-#define unlikely(expr)  __builtin_expect((expr), 0)
+#define likely(expr) __builtin_expect(!!(expr), 1)
+#define unlikely(expr) __builtin_expect((expr), 0)
 #else
-#define likely(expr)    expr
-#define unlikely(expr)  expr
+#define likely(expr) expr
+#define unlikely(expr) expr
 #endif
 
-static inline void * __attribute__ ((malloc)) xmalloc(ssize_t size)
-{
+static inline void *__attribute__((malloc)) xmalloc(ssize_t size) {
     void *ptr;
 
-    if(size <= 0)
-        return NULL;
+    if (size <= 0) return NULL;
 
     ptr = calloc(1, size);
 
-    if(!ptr)
-        abort();
+    if (!ptr) abort();
 
     return ptr;
 }
 
-static inline void
-xrealloc(void **ptr, ssize_t newsize)
-{
-    if(newsize <= 0)
-        p_delete(ptr);
-    else
-    {
+static inline void xrealloc(void **ptr, ssize_t newsize) {
+    if (newsize <= 0) p_delete(ptr);
+    else {
         *ptr = realloc(*ptr, newsize);
-        if(!*ptr)
-            abort();
+        if (!*ptr) abort();
     }
 }
 
@@ -128,8 +117,7 @@ xrealloc(void **ptr, ssize_t newsize)
  * \param size The source size.
  * \return The memory address of the copy.
  */
-static inline void *xmemdup(const void *src, ssize_t size)
-{
+static inline void *xmemdup(const void *src, ssize_t size) {
     return memcpy(xmalloc(size), src, size);
 }
 
@@ -141,8 +129,7 @@ static inline void *xmemdup(const void *src, ssize_t size)
  * \param[in] s the string.
  * \return the string length (or 0 if \c s is \c NULL).
  */
-static inline ssize_t a_strlen(const char *s)
-{
+static inline ssize_t a_strlen(const char *s) {
     return s ? strlen(s) : 0;
 }
 
@@ -160,10 +147,8 @@ static inline ssize_t a_strlen(const char *s)
  * \param[in]  n    the maximum length to return.
  * \return \c a_strlen(s) if less than \c n, else \c n.
  */
-static inline ssize_t a_strnlen(const char *s, ssize_t n)
-{
-    if (s)
-    {
+static inline ssize_t a_strnlen(const char *s, ssize_t n) {
+    if (s) {
         const char *p = memchr(s, '\0', n);
         return p ? p - s : n;
     }
@@ -180,9 +165,7 @@ static inline ssize_t a_strnlen(const char *s, ssize_t n)
  * \param[in] s the string to duplicate.
  * \return a pointer to the duplicated string.
  */
-static inline
-char *a_strdup(const char *s)
-{
+static inline char *a_strdup(const char *s) {
     ssize_t len = a_strlen(s);
     return len ? p_dup(s, len + 1) : NULL;
 }
@@ -197,15 +180,12 @@ char *a_strdup(const char *s)
  * \param[in]  s        source string.
  * \param[in]  l        maximum number of chars to copy.
  * \return a newly allocated buffer containing the first \c l chars of \c src.
-*/
-static inline
-char * a_strndup(const char *s, ssize_t l)
-{
+ */
+static inline char *a_strndup(const char *s, ssize_t l) {
     ssize_t len = MIN(a_strlen(s), l);
-    if(len)
-    {
+    if (len) {
         char *p = p_dup(s, len + 1);
-        p[len] = '\0';
+        p[len]  = '\0';
         return p;
     }
     return NULL;
@@ -217,12 +197,11 @@ char * a_strndup(const char *s, ssize_t l)
  * \return <tt>strcmp(a, b)</tt>, and treats \c NULL strings like \c ""
  * ones.
  */
-static inline int a_strcmp(const char *a, const char *b)
-{
+static inline int a_strcmp(const char *a, const char *b) {
     return strcmp(NONULL(a), NONULL(b));
 }
 
-#define  A_STREQ(a, b) (((a) == (b)) || a_strcmp(a, b) == 0)
+#define A_STREQ(a, b) (a_strcmp(a, b) == 0)
 #define A_STRNEQ(a, b) (!A_STREQ(a, b))
 
 /** \brief \c NULL resistant strcasecmp.
@@ -231,12 +210,11 @@ static inline int a_strcmp(const char *a, const char *b)
  * \return <tt>strcasecmp(a, b)</tt>, and treats \c NULL strings like \c ""
  * ones.
  */
-static inline int a_strcasecmp(const char *a, const char *b)
-{
+static inline int a_strcasecmp(const char *a, const char *b) {
     return strcasecmp(NONULL(a), NONULL(b));
 }
 
-#define  A_STREQ_CASE(a, b) (((a) == (b)) || a_strcasecmp(a, b) == 0)
+#define A_STREQ_CASE(a, b) (((a) == (b)) || a_strcasecmp(a, b) == 0)
 #define A_STRNEQ_CASE(a, b) (!A_STREQ_CASE(a, b))
 
 /** \brief \c NULL resistant strncmp.
@@ -246,12 +224,11 @@ static inline int a_strcasecmp(const char *a, const char *b)
  * \return <tt>strncmp(a, b, n)</tt>, and treats \c NULL strings like \c ""
  * ones.
  */
-static inline int a_strncmp(const char *a, const char *b, ssize_t n)
-{
+static inline int a_strncmp(const char *a, const char *b, ssize_t n) {
     return strncmp(NONULL(a), NONULL(b), n);
 }
 
-#define  A_STREQ_N(a, b, n) (((a) == (b)) || (n) == ((ssize_t) 0) || a_strncmp(a, b, n) == 0)
+#define A_STREQ_N(a, b, n) (((a) == (b)) || (n) == ((ssize_t)0) || a_strncmp(a, b, n) == 0)
 #define A_STRNEQ_N(a, b) (!A_STREQN(a, b))
 
 ssize_t a_strncpy(char *dst, ssize_t n, const char *src, ssize_t l) __attribute__((nonnull(1)));
@@ -267,8 +244,7 @@ ssize_t a_strcpy(char *dst, ssize_t n, const char *src) __attribute__((nonnull(1
  * \param[in]  src   the string to append.
  * \return <tt>a_strlen(dst) + a_strlen(src)</tt>
  */
-static inline ssize_t a_strcat(char *dst, ssize_t n, const char *src)
-{
+static inline ssize_t a_strcat(char *dst, ssize_t n, const char *src) {
     ssize_t dlen = a_strnlen(dst, n - 1);
     return dlen + a_strcpy(dst + dlen, n - dlen, src);
 }
@@ -285,9 +261,7 @@ static inline ssize_t a_strcat(char *dst, ssize_t n, const char *src)
  * \return the smallest value between <tt>a_strlen(dst) + a_strlen(src)</tt>
  * and <tt>a_strlen(dst) + l</tt>
  */
-static inline ssize_t
-a_strncat(char *dst, ssize_t n, const char *src, ssize_t l)
-{
+static inline ssize_t a_strncat(char *dst, ssize_t n, const char *src, ssize_t l) {
     ssize_t dlen = a_strnlen(dst, n - 1);
     return dlen + a_strncpy(dst + dlen, n - dlen, src, l);
 }
@@ -295,34 +269,26 @@ a_strncat(char *dst, ssize_t n, const char *src, ssize_t l)
 /** Compute a hash for a string.
  * This is based on 'djb2' algorithm.
  */
-static inline unsigned long __attribute__ ((nonnull(1)))
-a_strhash(const unsigned char *str)
-{
+static inline unsigned long __attribute__((nonnull(1))) a_strhash(const unsigned char *str) {
     unsigned long hash = 5381;
-    int c;
+    int           c;
 
-    while((c = *str++))
+    while ((c = *str++))
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
     return hash;
 }
 
-#define fatal(string, ...) _fatal(__LINE__, \
-                                  __FUNCTION__, \
-                                  string, ## __VA_ARGS__)
-void _fatal(int, const char *, const char *, ...)
-    __attribute__ ((noreturn)) __attribute__ ((format(printf, 3, 4)));
+#define fatal(string, ...) _fatal(__LINE__, __FUNCTION__, string, ##__VA_ARGS__)
+void _fatal(int, const char *, const char *, ...) __attribute__((noreturn))
+__attribute__((format(printf, 3, 4)));
 
-#define warn(string, ...) _warn(__LINE__, \
-                                __FUNCTION__, \
-                                string, ## __VA_ARGS__)
-void _warn(int, const char *, const char *, ...)
-    __attribute__ ((format(printf, 3, 4)));
+#define warn(string, ...) _warn(__LINE__, __FUNCTION__, string, ##__VA_ARGS__)
+void _warn(int, const char *, const char *, ...) __attribute__((format(printf, 3, 4)));
 
-#define check(condition) do { \
-        if (!(condition)) \
-            _warn(__LINE__, __FUNCTION__, \
-                    "Checking assertion failed: " #condition); \
+#define check(condition)                                                                           \
+    do {                                                                                           \
+        if (!(condition)) _warn(__LINE__, __FUNCTION__, "Checking assertion failed: " #condition); \
     } while (0)
 
 const char *a_current_time_str(void);
