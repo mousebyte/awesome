@@ -34,6 +34,7 @@
  * @coreclassmod root
  */
 
+#include "root.h"
 #include "common/object.h"
 #include "common/signals.h"
 #include "globalconf.h"
@@ -564,27 +565,34 @@ static int luaA_root_newindex(lua_State *L) {
     return luaA_default_newindex(L);
 }
 
-const struct luaL_Reg awesome_root_methods[] = {
-    {"_buttons",                  luaA_root_buttons                  },
-    {"_keys",                     luaA_root_keys                     },
-    {"cursor",                    luaA_root_cursor                   },
-    {"fake_input",                luaA_root_fake_input               },
-    {"drawins",                   luaA_root_drawins                  },
-    {"_wallpaper",                luaA_root_wallpaper                },
-    {"content",                   luaA_root_get_content              },
-    {"size",                      luaA_root_size                     },
-    {"size_mm",                   luaA_root_size_mm                  },
-    {"tags",                      luaA_root_tags                     },
-    {"set_index_miss_handler",    luaA_root_set_index_miss_handler   },
-    {"set_call_handler",          luaA_root_set_call_handler         },
-    {"set_newindex_miss_handler", luaA_root_set_newindex_miss_handler},
-    {NULL,                        NULL                               }
-};
+void luaA_root_init(lua_State *L) {
+    static const struct luaL_Reg awesome_root_methods[] = {
+        {"_buttons",                  luaA_root_buttons                  },
+        {"_keys",                     luaA_root_keys                     },
+        {"cursor",                    luaA_root_cursor                   },
+        {"fake_input",                luaA_root_fake_input               },
+        {"drawins",                   luaA_root_drawins                  },
+        {"_wallpaper",                luaA_root_wallpaper                },
+        {"content",                   luaA_root_get_content              },
+        {"size",                      luaA_root_size                     },
+        {"size_mm",                   luaA_root_size_mm                  },
+        {"tags",                      luaA_root_tags                     },
+        {"set_index_miss_handler",    luaA_root_set_index_miss_handler   },
+        {"set_call_handler",          luaA_root_set_call_handler         },
+        {"set_newindex_miss_handler", luaA_root_set_newindex_miss_handler},
+        {NULL,                        NULL                               }
+    };
 
-const struct luaL_Reg awesome_root_meta[] = {
-    {"__index",    luaA_root_index   },
-    {"__newindex", luaA_root_newindex},
-    {NULL,         NULL              }
-};
+    static const struct luaL_Reg awesome_root_meta[] = {
+        {"__index",    luaA_root_index   },
+        {"__newindex", luaA_root_newindex},
+        {NULL,         NULL              }
+    };
+
+    luaL_newlib(L, awesome_root_methods);
+    luaL_newlib(L, awesome_root_meta);
+    lua_setmetatable(L, -2);
+    lua_setglobal(L, "root");
+}
 
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
