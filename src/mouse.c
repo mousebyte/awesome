@@ -61,6 +61,7 @@
  */
 
 #include "mouse.h"
+#include "common/lualib.h"
 #include "common/util.h"
 #include "common/xutil.h"
 #include "globalconf.h"
@@ -166,12 +167,12 @@ static int luaA_mouse_index(lua_State *L) {
         /* Nothing ever handles mouse.screen being nil. Lying is better than
          * having lots of lua errors in this case.
          */
-        if (globalconf.focus.client) luaA_object_push(L, globalconf.focus.client->screen);
-        else luaA_object_push(L, screen_get_primary());
+        if (globalconf.focus.client) luna_object_push(L, globalconf.focus.client->screen);
+        else luna_object_push(L, screen_get_primary());
         return 1;
     }
 
-    luaA_object_push(L, screen_getbycoord(mouse_x, mouse_y));
+    luna_object_push(L, screen_getbycoord(mouse_x, mouse_y));
     return 1;
 }
 
@@ -266,9 +267,15 @@ static int luaA_mouse_object_under_pointer(lua_State *L) {
     drawin_t *drawin;
     client_t *client;
 
-    if ((drawin = drawin_getbywin(child))) return luaA_object_push(L, drawin);
+    if ((drawin = drawin_getbywin(child))) {
+        luna_object_push(L, drawin);
+        return 1;
+    }
 
-    if ((client = client_getbyframewin(child))) return luaA_object_push(L, client);
+    if ((client = client_getbyframewin(child))) {
+        luna_object_push(L, client);
+        return 1;
+    }
 
     return 0;
 }
@@ -287,17 +294,24 @@ static int luaA_mouse_set_newindex_miss_handler(lua_State *L) {
     return luaA_registerfct(L, 1, &miss_newindex_handler);
 }
 
-const struct luaL_Reg awesome_mouse_methods[] = {
-    {"__index",                   luaA_mouse_index                    },
-    {"__newindex",                luaA_mouse_newindex                 },
-    {"coords",                    luaA_mouse_coords                   },
-    {"object_under_pointer",      luaA_mouse_object_under_pointer     },
-    {"set_index_miss_handler",    luaA_mouse_set_index_miss_handler   },
-    {"set_newindex_miss_handler", luaA_mouse_set_newindex_miss_handler},
-    {NULL,                        NULL                                }
-};
-const struct luaL_Reg awesome_mouse_meta[] = {
-    {NULL, NULL}
-};
+void luaA_mouse_init(lua_State *L) {
+    static const struct luaL_Reg awesome_mouse_methods[] = {
+        {"coords",                    luaA_mouse_coords                   },
+        {"object_under_pointer",      luaA_mouse_object_under_pointer     },
+        {"set_index_miss_handler",    luaA_mouse_set_index_miss_handler   },
+        {"set_newindex_miss_handler", luaA_mouse_set_newindex_miss_handler},
+        {NULL,                        NULL                                }
+    };
+    static const struct luaL_Reg awesome_mouse_meta[] = {
+        {"__index",    luaA_mouse_index   },
+        {"__newindex", luaA_mouse_newindex},
+        {NULL,         NULL               }
+    };
+
+    luaL_newlib(L, awesome_mouse_methods);
+    luaL_newlib(L, awesome_mouse_meta);
+    lua_setmetatable(L, -2);
+    lua_setglobal(L, "mouse");
+}
 
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
