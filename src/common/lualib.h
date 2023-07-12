@@ -162,6 +162,14 @@ static inline int luaA_getopt_integer_range(
     return def;
 }
 
+static inline size_t luaA_rawlen(lua_State *L, int idx) {
+#if LUA_VERSION_NUM >= 502
+    return lua_rawlen(L, idx);
+#else
+    return lua_objlen(L, idx);
+#endif
+}
+
 void luaA_checkfunction(lua_State *, int);
 void luaA_checktable(lua_State *, int);
 
@@ -275,6 +283,9 @@ static inline int luaA_call_handler(lua_State *L, int handler) {
     lua_remove(L, error_func_pos);
     return lua_gettop(L);
 }
+
+int luaA_default_index(lua_State *);
+int luaA_default_newindex(lua_State *);
 
 #endif
 
