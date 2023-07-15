@@ -24,6 +24,8 @@
 #include "banning.h"
 #include "common/atoms.h"
 #include "common/backtrace.h"
+#include "common/lualib.h"
+#include "common/signals.h"
 #include "common/version.h"
 #include "common/xutil.h"
 #include "dbus.h"
@@ -107,7 +109,7 @@ static void init_rng(void) {
 void awesome_atexit(bool restart) {
     lua_State *L = globalconf_get_lua_State();
     lua_pushboolean(L, restart);
-    signal_object_emit(L, &global_signals, "exit", 1);
+    luna_emit_global_signal(L, "exit", 1);
 
     /* Move clients where we want them to be and keep the stacking order intact */
     foreach (c, globalconf.stack) {
@@ -181,7 +183,7 @@ static void restore_client_order(xcb_get_property_cookie_t prop_cookie) {
                 client_idx++;
             }
 
-    luaA_class_emit_signal(globalconf_get_lua_State(), &client_class, "list", 0);
+    luna_class_emit_signal(globalconf_get_lua_State(), "Class", "list", 0);
     p_delete(&reply);
 }
 
