@@ -21,6 +21,7 @@
 #include <basedir.h>
 #include "common/array.h"
 #include "globalconf.h"
+#include "luaa.h"
 
 /**
  * Initialization values extracted from the command line or modeline.
