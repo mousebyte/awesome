@@ -22,10 +22,10 @@
 #ifndef AWESOME_COMMON_DRAW_H
 #define AWESOME_COMMON_DRAW_H
 
-#include <xcb/xcb.h>
 #include <cairo.h>
-#include <lua.h>
 #include <glib.h> /* for GError */
+#include <lua.h>
+#include <xcb/xcb.h>
 
 #include "common/array.h"
 #include "common/util.h"
@@ -34,8 +34,7 @@
 typedef struct _GdkPixbuf GdkPixbuf;
 
 typedef struct area_t area_t;
-struct area_t
-{
+struct area_t {
     /** Co-ords of upper left corner */
     int16_t  x;
     int16_t  y;
@@ -43,16 +42,14 @@ struct area_t
     uint16_t height;
 };
 
-#define AREA_LEFT(a)    ((a).x)
-#define AREA_TOP(a)     ((a).y)
-#define AREA_RIGHT(a)   ((a).x + (a).width)
-#define AREA_BOTTOM(a)    ((a).y + (a).height)
-#define AREA_EQUAL(a, b) ((a).x == (b).x && (a).y == (b).y && \
-        (a).width == (b).width && (a).height == (b).height)
+#define AREA_LEFT(a) ((a).x)
+#define AREA_TOP(a) ((a).y)
+#define AREA_RIGHT(a) ((a).x + (a).width)
+#define AREA_BOTTOM(a) ((a).y + (a).height)
+#define AREA_EQUAL(a, b) \
+    ((a).x == (b).x && (a).y == (b).y && (a).width == (b).width && (a).height == (b).height)
 
-static inline void
-cairo_surface_array_destroy_surface(cairo_surface_t **s)
-{
+static inline void cairo_surface_array_destroy_surface(cairo_surface_t **s) {
     cairo_surface_destroy(*s);
 }
 DO_ARRAY(cairo_surface_t *, cairo_surface, cairo_surface_array_destroy_surface)
@@ -65,7 +62,7 @@ cairo_surface_t *draw_surface_from_pixbuf(GdkPixbuf *buf);
 xcb_visualtype_t *draw_find_visual(const xcb_screen_t *s, xcb_visualid_t visual);
 xcb_visualtype_t *draw_default_visual(const xcb_screen_t *s);
 xcb_visualtype_t *draw_argb_visual(const xcb_screen_t *s);
-uint8_t draw_visual_depth(const xcb_screen_t *s, xcb_visualid_t vis);
+uint8_t           draw_visual_depth(const xcb_screen_t *s, xcb_visualid_t vis);
 
 void draw_test_cairo_xcb(void);
 
