@@ -22,10 +22,10 @@
 #ifndef AWESOME_XKB_H
 #define AWESOME_XKB_H
 
-#include <xcb/xcb.h>
 #include <lua.h>
+#include <xcb/xcb.h>
 
-void event_handle_xkb_notify(xcb_generic_event_t* event);
+void event_handle_xkb_notify(xcb_generic_event_t *event);
 void xkb_init(void);
 void xkb_free(void);
 
