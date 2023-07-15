@@ -294,7 +294,7 @@ static int luaA_mouse_set_newindex_miss_handler(lua_State *L) {
     return luaA_registerfct(L, 1, &miss_newindex_handler);
 }
 
-void luaA_mouse_init(lua_State *L) {
+void luaA_register_mouse(lua_State *L) {
     static const struct luaL_Reg awesome_mouse_methods[] = {
         {"coords",                    luaA_mouse_coords                   },
         {"object_under_pointer",      luaA_mouse_object_under_pointer     },
