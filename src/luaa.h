@@ -103,7 +103,5 @@ bool        luaA_parserc(xdgHandle *, const char *);
 
 void luaA_emit_startup(void);
 
-void luaA_systray_invalidate(void);
-
 #endif
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
