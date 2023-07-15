@@ -25,31 +25,30 @@
  * @module keygrabber
  */
 
+#include <lauxlib.h>
 #include <unistd.h>
-#include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
+#include <xkbcommon/xkbcommon.h>
 
-#include "keygrabber.h"
+#include "common/lualib.h"
 #include "globalconf.h"
+#include "keygrabber.h"
+#include "objects/key.h"
 
 /** Grab the keyboard.
  * \return True if keyboard was grabbed.
  */
-static bool
-keygrabber_grab(void)
-{
-    int i;
+static bool keygrabber_grab(void) {
+    int                        i;
     xcb_grab_keyboard_reply_t *xgb;
 
-    for(i = 1000; i; i--)
-    {
-        if((xgb = xcb_grab_keyboard_reply(globalconf.connection,
-                                          xcb_grab_keyboard(globalconf.connection, true,
-                                                            globalconf.screen->root,
-                                                            XCB_CURRENT_TIME, XCB_GRAB_MODE_ASYNC,
-                                                            XCB_GRAB_MODE_ASYNC),
-                                          NULL)))
-        {
+    for (i = 1000; i; i--) {
+        if ((xgb = xcb_grab_keyboard_reply(
+                 globalconf.connection,
+                 xcb_grab_keyboard(
+                     globalconf.connection, true, globalconf.screen->root, XCB_CURRENT_TIME,
+                     XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC),
+                 NULL))) {
             p_delete(&xgb);
             return true;
         }
@@ -65,9 +64,7 @@ keygrabber_grab(void)
  * \param buf input buffer
  * \return True if the input buffer is control character.
  */
-static bool
-is_control(char *buf)
-{
+static bool is_control(char *buf) {
     return (buf[0] >= 0 && buf[0] < 0x20) || buf[0] == 0x7f;
 }
 
@@ -76,35 +73,30 @@ is_control(char *buf)
  * \param e Received XKeyEvent.
  * \return True if a key was successfully retrieved, false otherwise.
  */
-bool
-keygrabber_handlekpress(lua_State *L, xcb_key_press_event_t *e)
-{
+bool keygrabber_handlekpress(lua_State *L, xcb_key_press_event_t *e) {
     /* convert keysym to string */
     char buf[MAX(MB_LEN_MAX, 32)];
 
     /* snprintf-like return value could be used here, but that should not be
      * necessary, as we have buffer big enough */
-    xkb_state_key_get_utf8(globalconf.xkb_state, e->detail, buf, countof(buf) );
+    xkb_state_key_get_utf8(globalconf.xkb_state, e->detail, buf, countof(buf));
 
-    if (is_control(buf))
-    {
+    if (is_control(buf)) {
         /* Use text names for control characters, ignoring all modifiers. */
-        xcb_keysym_t keysym = xcb_key_symbols_get_keysym(globalconf.keysyms,
-                                                         e->detail, 0);
+        xcb_keysym_t keysym = xcb_key_symbols_get_keysym(globalconf.keysyms, e->detail, 0);
         xkb_keysym_get_name(keysym, buf, countof(buf));
     }
 
     luaA_pushmodifiers(L, e->state);
     lua_pushstring(L, buf);
 
-    switch(e->response_type)
-    {
-      case XCB_KEY_PRESS:
-        lua_pushliteral(L, "press");
-        break;
-      case XCB_KEY_RELEASE:
-        lua_pushliteral(L, "release");
-        break;
+    switch (e->response_type) {
+        case XCB_KEY_PRESS:
+            lua_pushliteral(L, "press");
+            break;
+        case XCB_KEY_RELEASE:
+            lua_pushliteral(L, "release");
+            break;
     }
     return true;
 }
@@ -116,16 +108,12 @@ keygrabber_handlekpress(lua_State *L, xcb_key_press_event_t *e)
  * @param callback A callback function as described above.
  * @deprecated keygrabber.run
  */
-static int
-luaA_keygrabber_run(lua_State *L)
-{
-    if(globalconf.keygrabber != LUA_REFNIL)
-        luaL_error(L, "keygrabber already running");
+static int luaA_keygrabber_run(lua_State *L) {
+    if (globalconf.keygrabber != LUA_REFNIL) luaL_error(L, "keygrabber already running");
 
     luaA_registerfct(L, 1, &globalconf.keygrabber);
 
-    if(!keygrabber_grab())
-    {
+    if (!keygrabber_grab()) {
         luaA_unregister(L, &globalconf.keygrabber);
         luaL_error(L, "unable to grab keyboard");
     }
@@ -136,9 +124,7 @@ luaA_keygrabber_run(lua_State *L)
 /** Stop grabbing the keyboard.
  * @deprecated keygrabber.stop
  */
-int
-luaA_keygrabber_stop(lua_State *L)
-{
+int luaA_keygrabber_stop(lua_State *L) {
     xcb_ungrab_keyboard(globalconf.connection, XCB_CURRENT_TIME);
     luaA_unregister(L, &globalconf.keygrabber);
     return 0;
@@ -149,21 +135,29 @@ luaA_keygrabber_stop(lua_State *L)
  * @treturn bool A boolean value, true if keygrabber is running, false otherwise.
  * @see keygrabber.is_running
  */
-static int
-luaA_keygrabber_isrunning(lua_State *L)
-{
+static int luaA_keygrabber_isrunning(lua_State *L) {
     lua_pushboolean(L, globalconf.keygrabber != LUA_REFNIL);
     return 1;
 }
 
-const struct luaL_Reg awesome_keygrabber_lib[] =
-{
-    { "run", luaA_keygrabber_run },
-    { "stop", luaA_keygrabber_stop },
-    { "isrunning", luaA_keygrabber_isrunning },
-    { "__index", luaA_default_index },
-    { "__newindex", luaA_default_newindex },
-    { NULL, NULL }
-};
+void luaA_register_keygrabber(lua_State *L) {
+    static const struct luaL_Reg awesome_keygrabber_lib[] = {
+        {"run",       luaA_keygrabber_run      },
+        {"stop",      luaA_keygrabber_stop     },
+        {"isrunning", luaA_keygrabber_isrunning},
+        {NULL,        NULL                     }
+    };
+
+    static const struct luaL_Reg awesome_keygrabber_meta[] = {
+        {"__index",    luaA_default_index   },
+        {"__newindex", luaA_default_newindex},
+        {NULL,         NULL                 }
+    };
+
+    luaL_newlib(L, awesome_keygrabber_lib);
+    luaL_newlib(L, awesome_keygrabber_meta);
+    lua_setmetatable(L, -2);
+    lua_setglobal(L, "keygrabber");
+}
 
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
