@@ -2,6 +2,7 @@
  * awesome.h - awesome main header
  *
  * Copyright © 2008 Julien Danjou <julien@danjou.info>
+ * Copyright © 2023 Abigail Teague <ateague063@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

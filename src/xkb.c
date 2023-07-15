@@ -2,6 +2,7 @@
  * xkb.c - keyboard layout control functions
  *
  * Copyright © 2015 Aleksey Fedotov <lexa@cfotr.com>
+ * Copyright © 2023 Abigail Teague <ateague063@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
