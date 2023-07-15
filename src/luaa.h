@@ -101,10 +101,6 @@ void        luaA_init(xdgHandle *, string_array_t *);
 const char *luaA_find_config(xdgHandle *, const char *, luaA_config_callback *);
 bool        luaA_parserc(xdgHandle *, const char *);
 
-/** Global signals */
-// TODO: put global signals in the registry or something
-// extern signal_array_t global_signals;
-
 void luaA_emit_startup(void);
 
 void luaA_systray_invalidate(void);

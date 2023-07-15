@@ -45,13 +45,19 @@
 #include "luaa.h"
 #include "awesome.h"
 #include "common/backtrace.h"
+#include "common/signals.h"
 #include "common/version.h"
 #include "config.h"
+#include "dbus.h"
 #include "event.h"
 #include "globalconf.h"
+#include "keygrabber.h"
+#include "mouse.h"
+#include "mousegrabber.h"
 #include "objects/client.h"
 #include "objects/drawable.h"
 #include "objects/drawin.h"
+#include "objects/key.h"
 #include "objects/screen.h"
 #include "objects/selection_acquire.h"
 #include "objects/selection_getter.h"
@@ -59,6 +65,7 @@
 #include "objects/selection_watcher.h"
 #include "objects/tag.h"
 #include "property.h"
+#include "root.h"
 #include "selection.h"
 #include "spawn.h"
 #include "systray.h"
@@ -81,16 +88,6 @@
 #include "xkb_utf32_to_keysym_compat.c"
 
 #include <unistd.h> /* for gethostname() */
-
-#ifdef WITH_DBUS
-extern const struct luaL_Reg awesome_dbus_lib[];
-#endif
-extern const struct luaL_Reg awesome_keygrabber_lib[];
-extern const struct luaL_Reg awesome_mousegrabber_lib[];
-extern const struct luaL_Reg awesome_mouse_methods[];
-extern const struct luaL_Reg awesome_mouse_meta[];
-extern const struct luaL_Reg awesome_root_methods[];
-extern const struct luaL_Reg awesome_root_meta[];
 
 /** A call into the Lua code aborted with an error.
  *
@@ -351,16 +348,6 @@ static int luaA_mbstrlen(lua_State *L) {
     return 1;
 }
 
-/** Enhanced type() function which recognize awesome objects.
- * \param L The Lua VM state.
- * \return The number of arguments pushed on the stack.
- */
-static int luaAe_type(lua_State *L) {
-    luaL_checkany(L, 1);
-    lua_pushstring(L, luaC_typename(L, 1));
-    return 1;
-}
-
 /** Replace various standards Lua functions with our own.
  * \param L The Lua VM state.
  */
@@ -370,9 +357,8 @@ static void luaA_fixups(lua_State *L) {
     lua_pushcfunction(L, luaA_mbstrlen);
     lua_setfield(L, -2, "wlen");
     lua_pop(L, 1);
-    /* replace type */
-    lua_pushcfunction(L, luaAe_type);
-    lua_setglobal(L, "type");
+    /* replace type, rawset, and rawget */
+    luaC_overrideglobals(L);
 }
 
 static const char *get_modifier_name(int map_index) {
@@ -678,8 +664,6 @@ static int luaA_get_active_modifiers(lua_State *L) {
  */
 
 static int luaA_awesome_index(lua_State *L) {
-    if (luaA_usemetatable(L, 1, 2)) return 1;
-
     const char *buf = luaL_checkstring(L, 2);
 
     if (A_STREQ(buf, "conffile")) {
@@ -761,7 +745,7 @@ static int luaA_awesome_index(lua_State *L) {
 static int luaA_awesome_connect_signal(lua_State *L) {
     const char *name = luaL_checkstring(L, 1);
     luaA_checkfunction(L, 2);
-    signal_connect(&global_signals, name, luaA_object_ref(L, 2));
+    luna_connect_global_signal(L, name);
     return 0;
 }
 
@@ -775,8 +759,7 @@ static int luaA_awesome_connect_signal(lua_State *L) {
 static int luaA_awesome_disconnect_signal(lua_State *L) {
     const char *name = luaL_checkstring(L, 1);
     luaA_checkfunction(L, 2);
-    const void *func = lua_topointer(L, 2);
-    if (signal_disconnect(&global_signals, name, func)) luaA_object_unref(L, (void *)func);
+    luna_disconnect_global_signal(L, name);
     return 0;
 }
 
@@ -788,7 +771,7 @@ static int luaA_awesome_disconnect_signal(lua_State *L) {
  * @noreturn
  */
 static int luaA_awesome_emit_signal(lua_State *L) {
-    signal_object_emit(L, &global_signals, luaL_checkstring(L, 1), lua_gettop(L) - 1);
+    luna_emit_global_signal(L, luaL_checkstring(L, 1), lua_gettop(L) - 1);
     return 0;
 }
 
@@ -843,7 +826,7 @@ static int luaA_dofunction_on_error(lua_State *L) {
     /* duplicate string error */
     lua_pushvalue(L, -1);
     /* emit error signal */
-    signal_object_emit(L, &global_signals, "debug::error", 1);
+    luna_emit_global_signal(L, ":debug.error", 1);
 
     if (!luaL_dostring(L, "return debug.traceback(\"error while running function!\", 3)")) {
         /* Move traceback before error */
@@ -1011,8 +994,6 @@ void luaA_init(xdgHandle *xdg, string_array_t *searchpath) {
         {"register_xproperty",      luaA_register_xproperty       },
         {"set_xproperty",           luaA_set_xproperty            },
         {"get_xproperty",           luaA_get_xproperty            },
-        {"__index",                 luaA_awesome_index            },
-        {"__newindex",              luaA_default_newindex         },
         {"xkb_set_layout_group",    luaA_xkb_set_layout_group     },
         {"xkb_get_layout_group",    luaA_xkb_get_layout_group     },
         {"xkb_get_group_names",     luaA_xkb_get_group_names      },
@@ -1021,6 +1002,12 @@ void luaA_init(xdgHandle *xdg, string_array_t *searchpath) {
         {"sync",                    luaA_sync                     },
         {"_get_key_name",           luaA_get_key_name             },
         {NULL,                      NULL                          }
+    };
+
+    static const struct luaL_Reg awesome_meta[] = {
+        {"__index",    luaA_awesome_index   },
+        {"__newindex", luaA_default_newindex},
+        {NULL,         NULL                 }
     };
 
     L = globalconf.L.real_L_dont_use_directly = luaL_newstate();
@@ -1035,67 +1022,70 @@ void luaA_init(xdgHandle *xdg, string_array_t *searchpath) {
 
     luaA_fixups(L);
 
-    luaA_object_setup(L);
+    luaC_register_signal_store(L);
+
+    luaC_register_object(L);
 
     /* Export awesome lib */
-    luaA_openlib(L, "awesome", awesome_lib, awesome_lib);
+    luaL_newlib(L, awesome_lib);
+    luaL_newlib(L, awesome_meta);
+    lua_setmetatable(L, -2);
+    lua_setglobal(L, "awesome");
+
     setup_awesome_signals(L);
 
     /* Export root lib */
-    luaA_openlib(L, "root", awesome_root_methods, awesome_root_meta);
+    luaA_register_root(L);
 
 #ifdef WITH_DBUS
     /* Export D-Bus lib */
-    luaA_registerlib(L, "dbus", awesome_dbus_lib);
-    lua_pop(L, 1); /* luaA_registerlib() leaves the table on stack */
+    luaA_register_dbus(L);
 #endif
 
     /* Export keygrabber lib */
-    luaA_registerlib(L, "keygrabber", awesome_keygrabber_lib);
-    lua_pop(L, 1); /* luaA_registerlib() leaves the table on stack */
+    luaA_register_keygrabber(L);
 
     /* Export mousegrabber lib */
-    luaA_registerlib(L, "mousegrabber", awesome_mousegrabber_lib);
-    lua_pop(L, 1); /* luaA_registerlib() leaves the table on stack */
+    luaA_register_mousegrabber(L);
 
     /* Export mouse */
-    luaA_openlib(L, "mouse", awesome_mouse_methods, awesome_mouse_meta);
+    luaA_register_mouse(L);
 
     /* Export screen */
-    screen_class_setup(L);
+    luaC_register_screen(L);
 
     /* Export button */
-    button_class_setup(L);
+    luaC_register_button(L);
 
     /* Export tag */
-    tag_class_setup(L);
+    luaC_register_tag(L);
 
     /* Export window */
-    window_class_setup(L);
+    luaC_register_window(L);
 
     /* Export drawable */
-    drawable_class_setup(L);
+    luaC_register_drawable(L);
 
     /* Export drawin */
-    drawin_class_setup(L);
+    luaC_register_drawin(L);
 
     /* Export client */
-    client_class_setup(L);
+    luaC_register_client(L);
 
     /* Export selection getter */
-    selection_getter_class_setup(L);
+    luaC_register_selection_getter(L);
 
     /* Export keys */
-    key_class_setup(L);
+    luaC_register_key(L);
 
     /* Export selection acquire */
-    selection_acquire_class_setup(L);
+    luaC_register_selection_acquire(L);
 
     /* Export selection transfer */
-    selection_transfer_class_setup(L);
+    luaC_register_selection_transfer(L);
 
     /* Export selection watcher */
-    selection_watcher_class_setup(L);
+    luaC_register_selection_watcher(L);
 
     /* Setup the selection interface */
     selection_setup(L);
@@ -1203,14 +1193,14 @@ luaA_find_config(xdgHandle *xdg, const char *confpatharg, luaA_config_callback *
     return NULL;
 }
 
-void luaA_emit_startup() {
+void luaA_emit_startup(void) {
     lua_State *L = globalconf_get_lua_State();
-    signal_object_emit(L, &global_signals, "startup", 0);
+    luna_emit_global_signal(L, "startup", 0);
 }
 
-void luaA_emit_refresh() {
+void luaA_emit_refresh(void) {
     lua_State *L = globalconf_get_lua_State();
-    signal_object_emit(L, &global_signals, "refresh", 0);
+    luna_emit_global_signal(L, "refresh", 0);
 }
 
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
