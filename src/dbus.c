@@ -69,6 +69,26 @@ static void a_dbus_cleanup_bus(DBusConnection *dbus_connection, GSource **source
     dbus_connection_unref(dbus_connection);
 }
 
+#define DBUS_MSG_HANDLE_ARRAY_TYPE_NUMBER_OR_INT(type, dbustype, pusher) \
+    case dbustype: {                                                     \
+        const type *data;                                                \
+        dbus_message_iter_get_fixed_array(&sub, &data, &datalen);        \
+        lua_createtable(L, datalen, 0);                                  \
+        for (int i = 0; i < datalen; i++) {                              \
+            pusher(L, data[i]);                                          \
+            lua_rawseti(L, -2, i + 1);                                   \
+        }                                                                \
+    } break;
+
+#define DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(type, dbustype, pusher) \
+    case dbustype: {                                               \
+        type ui;                                                   \
+        dbus_message_iter_get_basic(iter, &ui);                    \
+        pusher(L, ui);                                             \
+    }                                                              \
+        nargs++;                                                   \
+        break;
+
 /** Iterate through the D-Bus messages counting each or traverse each sub message.
  * \param L The Lua VM state.
  * \param iter The D-Bus message iterator pointer
@@ -128,17 +148,6 @@ static int a_dbus_message_iter(lua_State *L, DBusMessageIter *iter) {
 
                     switch (array_type) {
                         int datalen;
-#define DBUS_MSG_HANDLE_ARRAY_TYPE_NUMBER_OR_INT(type, dbustype, pusher) \
-    case dbustype: {                                                     \
-        const type *data;                                                \
-        dbus_message_iter_get_fixed_array(&sub, &data, &datalen);        \
-        lua_createtable(L, datalen, 0);                                  \
-        for (int i = 0; i < datalen; i++) {                              \
-            pusher(L, data[i]);                                          \
-            lua_rawseti(L, -2, i + 1);                                   \
-        }                                                                \
-    } break;
-
                         DBUS_MSG_HANDLE_ARRAY_TYPE_NUMBER_OR_INT(
                             int16_t, DBUS_TYPE_INT16, lua_pushinteger)
                         DBUS_MSG_HANDLE_ARRAY_TYPE_NUMBER_OR_INT(
@@ -153,7 +162,6 @@ static int a_dbus_message_iter(lua_State *L, DBusMessageIter *iter) {
                             uint64_t, DBUS_TYPE_UINT64, lua_pushinteger)
                         DBUS_MSG_HANDLE_ARRAY_TYPE_NUMBER_OR_INT(
                             double, DBUS_TYPE_DOUBLE, lua_pushnumber)
-#undef DBUS_MSG_HANDLE_ARRAY_TYPE_NUMBER_OR_INT
                         case DBUS_TYPE_BYTE: {
                             const char *c;
                             dbus_message_iter_get_fixed_array(&sub, &c, &datalen);
@@ -218,14 +226,6 @@ static int a_dbus_message_iter(lua_State *L, DBusMessageIter *iter) {
             }
                 nargs++;
                 break;
-#define DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(type, dbustype, pusher) \
-    case dbustype: {                                               \
-        type ui;                                                   \
-        dbus_message_iter_get_basic(iter, &ui);                    \
-        pusher(L, ui);                                             \
-    }                                                              \
-        nargs++;                                                   \
-        break;
                 DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(int16_t, DBUS_TYPE_INT16, lua_pushinteger)
                 DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(uint16_t, DBUS_TYPE_UINT16, lua_pushinteger)
                 DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(int32_t, DBUS_TYPE_INT32, lua_pushinteger)
@@ -233,7 +233,6 @@ static int a_dbus_message_iter(lua_State *L, DBusMessageIter *iter) {
                 DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(int64_t, DBUS_TYPE_INT64, lua_pushinteger)
                 DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(uint64_t, DBUS_TYPE_UINT64, lua_pushinteger)
                 DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT(double, DBUS_TYPE_DOUBLE, lua_pushnumber)
-#undef DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT
             case DBUS_TYPE_STRING: {
                 char *s;
                 dbus_message_iter_get_basic(iter, &s);
@@ -246,6 +245,15 @@ static int a_dbus_message_iter(lua_State *L, DBusMessageIter *iter) {
 
     return nargs;
 }
+
+#undef DBUS_MSG_HANDLE_ARRAY_TYPE_NUMBER_OR_INT
+#undef DBUS_MSG_HANDLE_TYPE_NUMBER_OR_INT
+
+#define DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(type, dbustype)    \
+    case dbustype: {                                          \
+        type num = lua_tonumber(L, idx + 1);                  \
+        dbus_message_iter_append_basic(iter, dbustype, &num); \
+    } break;
 
 static bool a_dbus_convert_value(lua_State *L, int idx, DBusMessageIter *iter) {
     /* i is the type name, i+1 the value */
@@ -294,11 +302,6 @@ static bool a_dbus_convert_value(lua_State *L, int idx, DBusMessageIter *iter) {
             }
             dbus_message_iter_append_basic(iter, DBUS_TYPE_STRING, &s);
         } break;
-#define DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(type, dbustype)    \
-    case dbustype: {                                          \
-        type num = lua_tonumber(L, idx + 1);                  \
-        dbus_message_iter_append_basic(iter, dbustype, &num); \
-    } break;
             DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(uint8_t, DBUS_TYPE_BYTE)
             DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(int16_t, DBUS_TYPE_INT16)
             DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(uint16_t, DBUS_TYPE_UINT16)
@@ -307,11 +310,12 @@ static bool a_dbus_convert_value(lua_State *L, int idx, DBusMessageIter *iter) {
             DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(int64_t, DBUS_TYPE_INT64)
             DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(uint64_t, DBUS_TYPE_UINT64)
             DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER(double, DBUS_TYPE_DOUBLE)
-#undef DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER
     }
 
     return true;
 }
+
+#undef DBUS_MSG_RETURN_HANDLE_TYPE_NUMBER
 
 /** Process a single request from D-Bus
  * \param dbus_connection  The connection to the D-Bus server.
