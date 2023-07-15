@@ -24,7 +24,7 @@
 
 #include "objects/client.h"
 
-#define PROPERTY(funcname) \
+#define PROPERTY(funcname)                                          \
     xcb_get_property_cookie_t property_get_##funcname(client_t *c); \
     void property_update_##funcname(client_t *c, xcb_get_property_cookie_t cookie)
 
@@ -47,12 +47,12 @@ PROPERTY(motif_wm_hints);
 #undef PROPERTY
 
 void property_handle_propertynotify(xcb_property_notify_event_t *ev);
-int luaA_register_xproperty(lua_State *L);
-int luaA_set_xproperty(lua_State *L);
-int luaA_get_xproperty(lua_State *L);
+int  luaA_register_xproperty(lua_State *L);
+int  luaA_set_xproperty(lua_State *L);
+int  luaA_get_xproperty(lua_State *L);
 
 struct xproperty {
-    xcb_atom_t atom;
+    xcb_atom_t  atom;
     const char *name;
     enum {
         /* UTF8_STRING */
@@ -64,9 +64,7 @@ struct xproperty {
     } type;
 };
 
-static inline int
-xproperty_cmp(const void *a, const void *b)
-{
+static inline int xproperty_cmp(const void *a, const void *b) {
     const xproperty_t *x = a, *y = b;
     return x->atom - y->atom;
 }
