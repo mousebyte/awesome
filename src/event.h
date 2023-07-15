@@ -39,9 +39,7 @@ void client_refresh(void);
 void client_focus_refresh(void);
 void client_destroy_later(void);
 
-static inline int
-awesome_refresh(void)
-{
+static inline int awesome_refresh(void) {
     luaA_emit_refresh();
     drawin_refresh();
     client_refresh();
