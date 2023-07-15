@@ -565,7 +565,7 @@ static int luaA_root_newindex(lua_State *L) {
     return luaA_default_newindex(L);
 }
 
-void luaA_root_init(lua_State *L) {
+void luaA_register_root(lua_State *L) {
     static const struct luaL_Reg awesome_root_methods[] = {
         {"_buttons",                  luaA_root_buttons                  },
         {"_keys",                     luaA_root_keys                     },

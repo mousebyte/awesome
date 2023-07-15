@@ -1,3 +1,3 @@
 #include <lua.h>
 
-void luaA_root_init(lua_State *L);
+void luaA_register_root(lua_State *L);
