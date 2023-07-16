@@ -111,6 +111,8 @@ void luaC_register_object(lua_State *L) {
     luaC_setinheritcb(L, -2, object_inherited);
     lua_pushcfunction(L, make_proptable);
     lua_setfield(L, -2, "Properties");
+    lua_newtable(L);
+    lua_setfield(L, LUA_REGISTRYINDEX, LUNA_OBJECT_REGISTRY_KEY);
 }
 
 int lunaL_object_constructor(lua_State *L) {
