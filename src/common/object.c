@@ -108,37 +108,23 @@ void luaC_register_object(lua_State *L) {
     luaC_newclass(L, "Object", NULL, object_methods);
     luaC_construct(L, 0, "SignalStore");
     lua_setfield(L, -2, "Signals");
-    lua_pushcfunction(L, object_inherited);
-    lua_setfield(L, -2, "__inherited");
+    luaC_setinheritcb(L, -2, object_inherited);
     lua_pushcfunction(L, make_proptable);
     lua_setfield(L, -2, "Properties");
 }
 
-static inline int _get_class_signal(lua_State *L, const char *class, const char *name) {
-    if (luaC_pushclass(L, class)) {
-        lua_getfield(L, -1, "Signals");
-        lua_getfield(L, -1, (name));
-        lua_insert(L, -3);
-        lua_pop(L, 2);
-    }
-    return lua_type(L, -1);
-}
-
 int lunaL_object_constructor(lua_State *L) {
-    luaA_checktable(L, 2);
-
-    lua_pushnil(L);
-    while (lua_next(L, 2)) {
-        lua_settable(L, 1);
-        lua_pop(L, 1);
+    if (lua_istable(L, 2)) {
+        lua_pushnil(L);
+        while (lua_next(L, 2)) {
+            lua_pushvalue(L, -2);  // push copy of key
+            lua_insert(L, -2);     // insert before value
+            lua_settable(L, 1);    // obj[key] = value
+        }
     }
 
     return 0;
 }
-
-#define _signal_connect(L) (lua_insert((L), -2), luaC_pmcall((L), "connect", 1, 0, 0))
-#define _signal_disconnect(L) (lua_insert((L), -2), luaC_pmcall((L), "disconnect", 1, 0, 0))
-#define _signal_emit(L, nargs) (lua_insert((L), -(nargs)), lua_pcall((L), (nargs), 0, 0))
 
 void luna_object_connect_signal(lua_State *L, int idx, const char *name) {
     if (lua_getfield(L, idx, "Signals") == LUA_TUSERDATA) {
