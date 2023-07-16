@@ -553,11 +553,16 @@ static luaC_Class tag_class = {
     .methods   = tag_methods};
 
 void luaC_register_tag(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_prop(tag, name),
+        lunaL_prop(tag, selected),
+        lunaL_prop(tag, activated),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &tag_class);
-    luaC_register(L, -1);
-    lunaL_prop(tag, name);
-    lunaL_prop(tag, selected);
-    lunaL_prop(tag, activated);
+    luna_register_withprops(L, -1, props);
+
     lua_pop(L, 1);
 }
 

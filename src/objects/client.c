@@ -4188,47 +4188,51 @@ static luaC_Class client_class = {
     .methods   = client_methods};
 
 void luaC_register_client(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_readonly_prop(client, transient_for),
+        lunaL_readonly_prop(client, content),
+        lunaL_readonly_prop(client, type),
+        lunaL_readonly_prop(client, class),
+        lunaL_readonly_prop(client, instance),
+        lunaL_readonly_prop(client, role),
+        lunaL_readonly_prop(client, pid),
+        lunaL_readonly_prop(client, leader_window),
+        lunaL_readonly_prop(client, machine),
+        lunaL_readonly_prop(client, icon_name),
+        lunaL_readonly_prop(client, motif_wm_hints),
+        lunaL_readonly_prop(client, group_window),
+        lunaL_readonly_prop(client, icon_sizes),
+        lunaL_readonly_prop(client, size_hints),
+        lunaL_readonly_prop(client, client_shape_bounding),
+        lunaL_readonly_prop(client, client_shape_clip),
+        lunaL_readonly_prop(client, first_tag),
+        lunaL_prop(client, name),
+        lunaL_prop(client, skip_taskbar),
+        lunaL_prop(client, hidden),
+        lunaL_prop(client, minimized),
+        lunaL_prop(client, fullscreen),
+        lunaL_prop(client, modal),
+        lunaL_prop(client, maximized),
+        lunaL_prop(client, maximized_horizontal),
+        lunaL_prop(client, maximized_vertical),
+        lunaL_prop(client, icon),
+        lunaL_prop(client, ontop),
+        lunaL_prop(client, above),
+        lunaL_prop(client, below),
+        lunaL_prop(client, sticky),
+        lunaL_prop(client, size_hints_honor),
+        lunaL_prop(client, urgent),
+        lunaL_prop(client, focusable),
+        lunaL_prop(client, shape_bounding),
+        lunaL_prop(client, shape_clip),
+        lunaL_prop(client, shape_input),
+        lunaL_prop(client, startup_id),
+        lunaL_prop(client, screen),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &client_class);
-    luaC_register(L, -1);
-    lunaL_readonly_prop(client, transient_for);
-    lunaL_readonly_prop(client, content);
-    lunaL_readonly_prop(client, type);
-    lunaL_readonly_prop(client, class);
-    lunaL_readonly_prop(client, instance);
-    lunaL_readonly_prop(client, role);
-    lunaL_readonly_prop(client, pid);
-    lunaL_readonly_prop(client, leader_window);
-    lunaL_readonly_prop(client, machine);
-    lunaL_readonly_prop(client, icon_name);
-    lunaL_readonly_prop(client, motif_wm_hints);
-    lunaL_readonly_prop(client, group_window);
-    lunaL_readonly_prop(client, icon_sizes);
-    lunaL_readonly_prop(client, size_hints);
-    lunaL_readonly_prop(client, client_shape_bounding);
-    lunaL_readonly_prop(client, client_shape_clip);
-    lunaL_readonly_prop(client, first_tag);
-    lunaL_prop(client, name);
-    lunaL_prop(client, skip_taskbar);
-    lunaL_prop(client, hidden);
-    lunaL_prop(client, minimized);
-    lunaL_prop(client, fullscreen);
-    lunaL_prop(client, modal);
-    lunaL_prop(client, maximized);
-    lunaL_prop(client, maximized_horizontal);
-    lunaL_prop(client, maximized_vertical);
-    lunaL_prop(client, icon);
-    lunaL_prop(client, ontop);
-    lunaL_prop(client, above);
-    lunaL_prop(client, below);
-    lunaL_prop(client, sticky);
-    lunaL_prop(client, size_hints_honor);
-    lunaL_prop(client, urgent);
-    lunaL_prop(client, focusable);
-    lunaL_prop(client, shape_bounding);
-    lunaL_prop(client, shape_clip);
-    lunaL_prop(client, shape_input);
-    lunaL_prop(client, startup_id);
-    lunaL_prop(client, screen);
+    luna_register_withprops(L, -1, props);
     lua_pushstring(L, "get");
     lua_pushcfunction(L, luaA_client_get);
     lua_rawset(L, -3);

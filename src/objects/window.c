@@ -418,14 +418,18 @@ luaC_Class window_class = {
     .methods   = window_methods};
 
 void luaC_register_window(lua_State *L) {
-    lua_pushlightuserdata(L, &window_class);
-    luaC_register(L, -1);
+    static const luna_Prop props[] = {
+        lunaL_readonly_prop(window, window),
+        lunaL_prop(window, _opacity),
+        lunaL_prop(window, _border_color),
+        lunaL_prop(window, _border_width),
+        lunaL_prop(window, type),
+        {NULL, NULL, NULL}
+    };
 
-    lunaL_readonly_prop(window, window);
-    lunaL_prop(window, _opacity);
-    lunaL_prop(window, _border_color);
-    lunaL_prop(window, _border_width);
-    lunaL_prop(window, type);
+    lua_pushlightuserdata(L, &window_class);
+    luna_register_withprops(L, -1, props);
+
     lua_pop(L, 1);
 }
 

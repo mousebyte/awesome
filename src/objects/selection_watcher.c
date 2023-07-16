@@ -173,9 +173,13 @@ static luaC_Class selection_watcher_class = {
     .methods   = selection_watcher_methods};
 
 void luaC_register_selection_watcher(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_prop(selection_watcher, active),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &selection_watcher_class);
-    luaC_register(L, -1);
-    lunaL_prop(selection_watcher, active);
+    luna_register_withprops(L, -1, props);
 
     /* Reference a table in the registry that tracks active watchers. This code
      * does debug.getregistry()[REGISTRY_WATCHER_TABLE_INDEX] = {}

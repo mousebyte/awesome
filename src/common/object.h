@@ -94,11 +94,22 @@ void luna_class_add_property(
     lua_CFunction get,
     lua_CFunction set);
 
+typedef struct luna_Prop {
+    const char   *name;
+    lua_CFunction get;
+    lua_CFunction set;
+} luna_Prop;
+
+void luna_class_setprops(lua_State *L, int idx, const luna_Prop props[], int nprops);
+
 #define lunaL_getter(cls, name) static int lunaL_##cls##_get_##name(lua_State *L)
 #define lunaL_setter(cls, name) static int lunaL_##cls##_set_##name(lua_State *L)
 #define lunaL_prop(cls, name) \
-    luna_class_add_property(L, -1, #name, lunaL_##cls##_get_##name, lunaL_##cls##_set_##name)
+    { (#name), (lunaL_##cls##_get_##name), (lunaL_##cls##_set_##name) }
 #define lunaL_readonly_prop(cls, name) \
-    luna_class_add_property(L, -1, #name, lunaL_##cls##_get_##name, NULL);
+    { (#name), (lunaL_##cls##_get_##name), NULL }
+#define luna_register_withprops(L, idx, props) \
+    (luaC_register((L), (idx)),                \
+     luna_class_setprops((L), -1, (props), sizeof((props)) / sizeof(luna_Prop) - 1))
 
 #endif

@@ -1661,14 +1661,18 @@ static luaC_Class screen_class = {
     .methods   = screen_methods};
 
 void luaC_register_screen(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_readonly_prop(screen, geometry),
+        lunaL_readonly_prop(screen, index),
+        lunaL_readonly_prop(screen, _outputs),
+        lunaL_readonly_prop(screen, _managed),
+        lunaL_readonly_prop(screen, workarea),
+        lunaL_prop(screen, name),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &screen_class);
-    luaC_register(L, -1);
-    lunaL_readonly_prop(screen, geometry);
-    lunaL_readonly_prop(screen, index);
-    lunaL_readonly_prop(screen, _outputs);
-    lunaL_readonly_prop(screen, _managed);
-    lunaL_readonly_prop(screen, workarea);
-    lunaL_prop(screen, name);
+    luna_register_withprops(L, -1, props);
     lua_pushstring(L, "count");
     lua_pushcfunction(L, lunaL_screen_count);
     lua_rawset(L, -3);

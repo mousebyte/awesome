@@ -166,10 +166,15 @@ static luaC_Class button_class = {
     .methods   = button_methods};
 
 void luaC_register_button(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_prop(button, button),
+        lunaL_prop(button, modifiers),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &button_class);
-    luaC_register(L, -1);
-    lunaL_prop(button, button);
-    lunaL_prop(button, modifiers);
+    luna_register_withprops(L, -1, props);
+
     lua_pop(L, 1);
 }
 

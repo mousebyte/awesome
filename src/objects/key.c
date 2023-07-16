@@ -316,11 +316,16 @@ luaC_Class key_class = {
     .methods   = key_methods};
 
 void luaC_register_key(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_prop(key, key),
+        lunaL_readonly_prop(key, keysym),
+        lunaL_prop(key, modifiers),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &key_class);
-    luaC_register(L, -1);
-    lunaL_prop(key, key);
-    lunaL_readonly_prop(key, keysym);
-    lunaL_prop(key, modifiers);
+    luna_register_withprops(L, -1, props);
+
     lua_pop(L, 1);
 }
 

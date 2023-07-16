@@ -202,9 +202,14 @@ static luaC_Class drawable_class = {
     .methods   = drawable_methods};
 
 void luaC_register_drawable(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_readonly_prop(drawable, surface),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &drawable_class);
-    luaC_register(L, -1);
-    lunaL_readonly_prop(drawable, surface);
+    luna_register_withprops(L, -1, props);
+
     lua_pop(L, 1);
 }
 

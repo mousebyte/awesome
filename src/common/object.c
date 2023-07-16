@@ -204,3 +204,23 @@ void luna_class_add_property(
     lua_setfield(L, -2, name);
     lua_pop(L, 1);
 }
+
+void luna_class_setprops(lua_State *L, int idx, const luna_Prop props[], int nprops) {
+    if (!props->name || !luaC_isclass(L, idx)) return;
+    lua_pushstring(L, "Properties");
+    lua_createtable(L, 0, nprops);  // properties table
+    do {
+        lua_pushstring(L, props->name);
+        if (props->set) {
+            lua_createtable(L, 0, 2);  // prop table (getter and setter)
+            lua_pushstring(L, "set");
+            lua_pushcfunction(L, props->set);
+            lua_rawset(L, -3);            // prop["set"] = set
+        } else lua_createtable(L, 0, 1);  // prop table (just getter)
+        lua_pushstring(L, "get");
+        lua_pushcfunction(L, props->get);
+        lua_rawset(L, -3);  // prop["get"] = get
+        lua_rawset(L, -3);  // properties[name] = prop
+    } while ((++props)->name && props->get);
+    lua_rawset(L, idx);  // class["Properties"] = properties
+}

@@ -691,22 +691,26 @@ luaC_Class drawin_class = {
     .methods   = drawin_methods};
 
 void luaC_register_drawin(lua_State *L) {
+    static const luna_Prop props[] = {
+        lunaL_readonly_prop(drawin, drawable),
+        lunaL_prop(drawin, visible),
+        lunaL_prop(drawin, ontop),
+        lunaL_prop(drawin, cursor),
+        lunaL_prop(drawin, x),
+        lunaL_prop(drawin, y),
+        lunaL_prop(drawin, width),
+        lunaL_prop(drawin, height),
+        lunaL_prop(drawin, shape_bounding),
+        lunaL_prop(drawin, shape_clip),
+        lunaL_prop(drawin, shape_input),
+        {NULL, NULL, NULL}
+    };
+
     lua_pushlightuserdata(L, &drawin_class);
-    luaC_register(L, -1);
+    luna_register_withprops(L, -1, props);
     lua_pushstring(L, "get");
     lua_pushcfunction(L, luaA_drawin_get);
     lua_rawset(L, -3);
-    lunaL_readonly_prop(drawin, drawable);
-    lunaL_prop(drawin, visible);
-    lunaL_prop(drawin, ontop);
-    lunaL_prop(drawin, cursor);
-    lunaL_prop(drawin, x);
-    lunaL_prop(drawin, y);
-    lunaL_prop(drawin, width);
-    lunaL_prop(drawin, height);
-    lunaL_prop(drawin, shape_bounding);
-    lunaL_prop(drawin, shape_clip);
-    lunaL_prop(drawin, shape_input);
 }
 
 // vim: filetype=c:expandtab:shiftwidth=4:tabstop=8:softtabstop=4:textwidth=80
